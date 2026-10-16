@@ -1,0 +1,136 @@
+{
+  "name": "dev-environment-manager",
+  "displayName": "Dev Environment Manager",
+  "description": "Manage Java, Gradle and Node.js profiles and run backend/frontend projects.",
+  "version": "0.2.0",
+  "publisher": "local-dev-tools",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "devEnvironmentManager.openDashboard",
+        "title": "Dev Environment Manager: Open Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "devEnvironmentManager.autoConfigureProjectRoot",
+        "title": "Dev Environment Manager: Auto-Configure Project Root from Current Workspace",
+        "icon": "$(folder-active)"
+      },
+      {
+        "command": "devEnvironmentManager.selectProfile",
+        "title": "Dev Environment Manager: Select Profile"
+      },
+      {
+        "command": "devEnvironmentManager.checkEnvironment",
+        "title": "Dev Environment Manager: Check Environment"
+      },
+      {
+        "command": "devEnvironmentManager.runBackend",
+        "title": "Dev Environment Manager: Run Backend"
+      },
+      {
+        "command": "devEnvironmentManager.runFrontend",
+        "title": "Dev Environment Manager: Run Frontend"
+      },
+      {
+        "command": "devEnvironmentManager.runAll",
+        "title": "Dev Environment Manager: Run All"
+      },
+      {
+        "command": "devEnvironmentManager.buildProject",
+        "title": "Dev Environment Manager: Build Project"
+      },
+      {
+        "command": "devEnvironmentManager.stopBackend",
+        "title": "Dev Environment Manager: Stop Backend"
+      },
+      {
+        "command": "devEnvironmentManager.stopFrontend",
+        "title": "Dev Environment Manager: Stop Frontend"
+      },
+      {
+        "command": "devEnvironmentManager.stopAll",
+        "title": "Dev Environment Manager: Stop All"
+      },
+      {
+        "command": "devEnvironmentManager.restartBackend",
+        "title": "Dev Environment Manager: Restart Backend"
+      },
+      {
+        "command": "devEnvironmentManager.restartFrontend",
+        "title": "Dev Environment Manager: Restart Frontend"
+      },
+      {
+        "command": "devEnvironmentManager.restartAll",
+        "title": "Dev Environment Manager: Restart All"
+      },
+      {
+        "command": "devEnvironmentManager.openBackendTerminal",
+        "title": "Dev Environment Manager: Open Backend Terminal"
+      },
+      {
+        "command": "devEnvironmentManager.openFrontendTerminal",
+        "title": "Dev Environment Manager: Open Frontend Terminal"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "devEnvironmentManagerContainer",
+          "title": "Dev Environment Manager",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "devEnvironmentManagerContainer": [
+        {
+          "type": "webview",
+          "id": "devEnvironmentManagerView",
+          "name": "Dev Environment Manager"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "devEnvironmentManager.openDashboard",
+          "when": "view == devEnvironmentManagerView",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "devEnvironmentManager.openDashboard"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Dev Environment Manager",
+      "properties": {
+        "devEnvironmentManager.configFile": {
+          "type": "string",
+          "default": ".vscode/project-build-manager.json",
+          "description": "Project-relative configuration file."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.5"
+  }
+}

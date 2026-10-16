@@ -1,0 +1,48 @@
+{
+  "name": "dev-environment-manager-phase1-2",
+  "projectRoot": "D:\\LinhTinh\\dev-environment-manager-phase1-2",
+  "activeProfile": "java17-node20",
+  "profiles": {
+    "java8-node10": {
+      "label": "Java 8 / Gradle 3.5.1 / Node.js 10.24.1",
+      "javaHome": "E:\\soft\\jdk8",
+      "gradleHome": "E:\\soft\\gradle-3.5.1",
+      "nodeVersion": "10.24.1"
+    },
+    "java11-node14": {
+      "label": "Java 11 / Gradle 6.9.1 / Node.js 14.20.0",
+      "javaHome": "E:\\soft\\jdk11",
+      "gradleHome": "E:\\soft\\gradle-6.9.1",
+      "nodeVersion": "14.20.0"
+    },
+    "java17-node20": {
+      "label": "Java 17 / Gradle 8.8 / Node.js 20.14.0",
+      "javaHome": "E:\\soft\\jdk17",
+      "gradleHome": "E:\\soft\\gradle-8.8",
+      "nodeVersion": "20.14.0"
+    },
+    "java21-node20": {
+      "label": "Java 21 / Gradle 8.8 / Node.js 20.14.0",
+      "javaHome": "E:\\soft\\jdk21",
+      "gradleHome": "E:\\soft\\gradle-8.8",
+      "nodeVersion": "20.14.0"
+    }
+  },
+  "backend": {
+    "workingDirectory": ".",
+    "command": "gradle",
+    "args": ["root:bootRun"],
+    "terminalName": "DEM: Backend"
+  },
+  "frontend": {
+    "workingDirectory": "frontend",
+    "command": "npm",
+    "args": ["start"],
+    "terminalName": "DEM: Frontend"
+  },
+  "build": {
+    "workingDirectory": ".",
+    "command": "gradle",
+    "args": ["clean", "root:bootwar"]
+  }
+}
