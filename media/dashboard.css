@@ -53,8 +53,9 @@ body {
 }
 
 .dashboard-container {
-  max-width: 1180px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -392,8 +393,14 @@ body {
 
 .profile-details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
+}
+
+@media (min-width: 680px) {
+  .profile-details-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
 }
 
 .profile-tool-box {
@@ -469,8 +476,8 @@ body {
 
 /* Quick Actions Grid */
 .quick-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -479,10 +486,12 @@ body {
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   font-size: 12px;
   font-weight: 600;
   text-align: left;
+  flex: 0 0 auto;
+  min-width: 110px;
 }
 
 .build-status-strip {
@@ -517,8 +526,14 @@ body {
 /* Process Status Cards Grid */
 .process-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
+}
+
+@media (min-width: 620px) {
+  .process-cards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .process-card {
@@ -571,8 +586,14 @@ body {
 /* Environment Diagnostics */
 .diagnostics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
+}
+
+@media (min-width: 620px) {
+  .diagnostics-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .diag-item {
@@ -777,8 +798,14 @@ body {
 /* Configuration Form */
 .config-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
+}
+
+@media (min-width: 620px) {
+  .config-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .config-group {
@@ -836,4 +863,200 @@ body {
   text-align: center;
   padding: 28px 16px;
 }
+
+/* Phase 3: Debug Manager Styles */
+.debug-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 620px) {
+  .debug-cards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.debug-target-box {
+  background: var(--dem-card-elevated);
+  border: 1px solid var(--dem-border);
+  border-radius: var(--dem-radius-sm);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.debug-target-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.debug-target-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--dem-fg);
+}
+
+.debug-meta-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  font-size: 11px;
+}
+
+.milestones-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--dem-border);
+  border-radius: var(--dem-radius-sm);
+  padding: 8px 10px;
+}
+
+.milestones-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--dem-muted);
+}
+
+.milestones-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.milestone-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-family: var(--dem-mono);
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--dem-border);
+  background: transparent;
+  color: var(--dem-muted);
+  transition: all 0.2s ease;
+}
+
+.milestone-pill.milestone-active {
+  border-color: rgba(63, 185, 80, 0.4);
+  background: rgba(63, 185, 80, 0.14);
+  color: var(--dem-green);
+  font-weight: 500;
+}
+
+.milestone-pill.milestone-active .milestone-icon {
+  color: var(--dem-green);
+}
+
+.milestone-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.debug-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+/* Breakpoints Card */
+.breakpoints-card {
+  margin-top: 10px;
+  background: var(--dem-card-elevated);
+  border: 1px solid var(--dem-border);
+  border-radius: var(--dem-radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breakpoints-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.breakpoints-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--dem-fg);
+}
+
+.breakpoints-table-container {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--dem-border);
+  border-radius: var(--dem-radius-sm);
+  background: var(--vscode-editor-background);
+}
+
+.breakpoints-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.breakpoints-table th {
+  text-align: left;
+  padding: 5px 8px;
+  color: var(--dem-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--dem-border);
+  background: var(--dem-card-elevated);
+  position: sticky;
+  top: 0;
+}
+
+.breakpoints-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--dem-border);
+  vertical-align: middle;
+}
+
+.breakpoints-table tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bp-file-link {
+  color: var(--dem-blue);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-family: var(--dem-mono);
+  font-size: 11px;
+}
+
+.bp-file-link:hover {
+  color: #79c0ff;
+}
+
+.bp-condition {
+  font-family: var(--dem-mono);
+  font-size: 10px;
+  color: var(--dem-yellow);
+  background: rgba(210, 153, 34, 0.12);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.breakpoints-empty-msg {
+  padding: 16px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--dem-muted);
+  font-style: italic;
+}
+
 

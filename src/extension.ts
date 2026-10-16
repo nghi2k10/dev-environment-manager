@@ -3,9 +3,11 @@ import { ConfigService } from "./services/ConfigService";
 import { LogService } from "./services/LogService";
 import { EnvironmentService } from "./services/EnvironmentService";
 import { ProcessManager } from "./services/ProcessManager";
+import { DebugManager } from "./services/DebugManager";
 import { DashboardProvider } from "./dashboard/DashboardProvider";
 
 let processManager: ProcessManager | undefined;
+let debugManager: DebugManager | undefined;
 
 function registerCommand(
   context: vscode.ExtensionContext,
@@ -31,18 +33,21 @@ export function activate(context: vscode.ExtensionContext): void {
   const configService = new ConfigService();
   const logService = new LogService(outputChannel);
   const environmentService = new EnvironmentService(configService, logService);
-  processManager = new ProcessManager(configService, logService);
+  debugManager = new DebugManager(configService, logService);
+  processManager = new ProcessManager(configService, logService, debugManager);
 
   const dashboardProvider = new DashboardProvider(
     context.extensionUri,
     configService,
     environmentService,
     processManager,
-    logService
+    logService,
+    debugManager
   );
 
   context.subscriptions.push(
     logService,
+    debugManager,
     processManager,
     dashboardProvider,
     vscode.window.registerWebviewViewProvider(
@@ -131,6 +136,30 @@ export function activate(context: vscode.ExtensionContext): void {
     await processManager?.runAll();
   });
 
+  registerCommand(context, "debugBackend", async () => {
+    await processManager?.debugBackend();
+  });
+
+  registerCommand(context, "debugFrontend", async () => {
+    await processManager?.debugFrontend();
+  });
+
+  registerCommand(context, "debugAll", async () => {
+    await processManager?.debugAll();
+  });
+
+  registerCommand(context, "attachSpringBoot", async () => {
+    await debugManager?.attachSpringBootDebugger();
+  });
+
+  registerCommand(context, "attachFrontend", async () => {
+    await debugManager?.launchAngularDebugger();
+  });
+
+  registerCommand(context, "syncLaunchJson", async () => {
+    await debugManager?.syncLaunchJson();
+  });
+
   registerCommand(context, "buildProject", async () => {
     const succeeded = await processManager?.runBuildProject(false);
     if (succeeded) {
@@ -180,10 +209,23 @@ export function activate(context: vscode.ExtensionContext): void {
     processManager?.openTerminal("frontend", false);
   });
 
+  registerCommand(context, "exportConfig", async () => {
+    await configService.exportConfiguration();
+  });
+
+  registerCommand(context, "importConfig", async () => {
+    const imported = await configService.importConfiguration();
+    if (imported) {
+      dashboardProvider.broadcastFullState();
+    }
+  });
+
   outputChannel.appendLine("Dev Environment Manager activated.");
 }
 
 export function deactivate(): void {
+  debugManager?.dispose();
+  debugManager = undefined;
   processManager?.dispose();
   processManager = undefined;
 }

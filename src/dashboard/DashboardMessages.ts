@@ -1,6 +1,8 @@
 import {
+  BreakpointInfo,
   BuildState,
   DashboardState,
+  DebugManagerState,
   DiagnosticsState,
   LogEntry,
   ProcessState
@@ -17,18 +19,34 @@ export type ConfigurationUpdatePayload = {
     gradleHome: string;
     nodeHome?: string;
     nodeVersion?: string;
+    backendCommand?: string;
+    backendArgs?: string[];
   };
   backend: {
     workingDirectory: string;
     command: string;
     args: string[];
     terminalName?: string;
+    debugPort?: number;
+    serverPort?: number;
+    springProfile?: string;
+    jdwpMode?: "javaToolOptions" | "gradleDebugJvm" | "customArgs";
+    jvmSuspend?: boolean;
+    customDebugArgs?: string[];
+    autoAttachDebugger?: boolean;
   };
   frontend: {
     workingDirectory: string;
     command: string;
     args: string[];
     terminalName?: string;
+    devServerUrl?: string;
+    browserType?: "chrome" | "msedge";
+    webRoot?: string;
+    browserExecutable?: string;
+    userDataDir?: string;
+    browserArgs?: string[];
+    browserDebugPort?: number;
   };
   build: {
     workingDirectory: string;
@@ -46,6 +64,17 @@ export type DashboardCommand =
   | { type: "runBackend" }
   | { type: "runFrontend" }
   | { type: "runAll" }
+  | { type: "debugBackend" }
+  | { type: "debugFrontend" }
+  | { type: "debugAll" }
+  | { type: "attachSpringBoot" }
+  | { type: "attachFrontend" }
+  | { type: "syncLaunchJson" }
+  | { type: "openUrl"; url: string }
+  | { type: "toggleBreakpoint"; id: string }
+  | { type: "removeBreakpoint"; id: string }
+  | { type: "jumpToBreakpoint"; filePath: string; line: number }
+  | { type: "clearAllBreakpoints" }
   | { type: "buildProject" }
   | { type: "stopBackend" }
   | { type: "stopFrontend" }
@@ -59,12 +88,16 @@ export type DashboardCommand =
   | { type: "copyLogs"; target?: "all" | "backend" | "frontend" | "build" }
   | { type: "saveConfiguration"; configuration: unknown }
   | { type: "openConfigFile" }
-  | { type: "autoSyncProjectRoot" };
+  | { type: "autoSyncProjectRoot" }
+  | { type: "exportConfiguration" }
+  | { type: "importConfiguration" };
 
 export type ExtensionMessage =
   | { type: "stateUpdated"; state: DashboardState }
   | { type: "processUpdated"; backend: ProcessState; frontend: ProcessState; build: BuildState }
   | { type: "diagnosticsUpdated"; diagnostics: DiagnosticsState }
+  | { type: "debugUpdated"; debug: DebugManagerState }
+  | { type: "breakpointsUpdated"; breakpoints: BreakpointInfo[] }
   | { type: "logAppended"; entry: LogEntry }
   | { type: "logsSnapshot"; target: "all" | "backend" | "frontend" | "build"; logs: LogEntry[] }
   | { type: "logsCleared" }
@@ -83,6 +116,17 @@ const VALID_COMMAND_TYPES = new Set([
   "runBackend",
   "runFrontend",
   "runAll",
+  "debugBackend",
+  "debugFrontend",
+  "debugAll",
+  "attachSpringBoot",
+  "attachFrontend",
+  "syncLaunchJson",
+  "openUrl",
+  "toggleBreakpoint",
+  "removeBreakpoint",
+  "jumpToBreakpoint",
+  "clearAllBreakpoints",
   "buildProject",
   "stopBackend",
   "stopFrontend",
@@ -96,7 +140,9 @@ const VALID_COMMAND_TYPES = new Set([
   "copyLogs",
   "saveConfiguration",
   "openConfigFile",
-  "autoSyncProjectRoot"
+  "autoSyncProjectRoot",
+  "exportConfiguration",
+  "importConfiguration"
 ]);
 
 export function parseDashboardCommand(raw: unknown): DashboardCommand | null {
@@ -114,6 +160,30 @@ export function parseDashboardCommand(raw: unknown): DashboardCommand | null {
         return null;
       }
       return { type: "selectProfile", profileId: msg.profileId.trim() };
+    }
+    case "openUrl": {
+      if (typeof msg.url !== "string" || msg.url.trim().length === 0) {
+        return null;
+      }
+      return { type: "openUrl", url: msg.url.trim() };
+    }
+    case "toggleBreakpoint": {
+      if (typeof msg.id !== "string" || msg.id.trim().length === 0) {
+        return null;
+      }
+      return { type: "toggleBreakpoint", id: msg.id.trim() };
+    }
+    case "removeBreakpoint": {
+      if (typeof msg.id !== "string" || msg.id.trim().length === 0) {
+        return null;
+      }
+      return { type: "removeBreakpoint", id: msg.id.trim() };
+    }
+    case "jumpToBreakpoint": {
+      if (typeof msg.filePath !== "string" || typeof msg.line !== "number") {
+        return null;
+      }
+      return { type: "jumpToBreakpoint", filePath: msg.filePath, line: msg.line };
     }
     case "openTerminal": {
       if (msg.target !== "backend" && msg.target !== "frontend" && msg.target !== "build") {
@@ -146,4 +216,5 @@ export function parseDashboardCommand(raw: unknown): DashboardCommand | null {
       return { type: msg.type as DashboardCommand["type"] } as DashboardCommand;
   }
 }
+
 

@@ -173,9 +173,13 @@ export function buildDashboardHtml(
         </div>
 
         <div class="quick-actions-grid">
-          <button id="btn-run-all" class="btn btn-primary quick-action-btn" title="Start both Backend and Frontend processes">
+          <button id="btn-run-all" class="btn btn-primary quick-action-btn" title="Start Backend and Frontend processes">
             <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             Run All
+          </button>
+          <button id="btn-debug-all" class="btn btn-secondary quick-action-btn" title="Start Backend (JDWP) and Frontend processes in debug mode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+            Debug All
           </button>
           <button id="btn-qa-run-backend" class="btn btn-secondary quick-action-btn" title="Start the Backend process only">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
@@ -254,6 +258,10 @@ export function buildDashboardHtml(
               <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
               Run
             </button>
+            <button id="btn-backend-debug" class="btn btn-secondary btn-sm" title="Start Backend process with JDWP Debugger enabled">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+              Debug
+            </button>
             <button id="btn-backend-stop" class="btn btn-danger btn-sm" title="Stop Backend process" disabled>
               <svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
               Stop
@@ -306,6 +314,10 @@ export function buildDashboardHtml(
               <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
               Run
             </button>
+            <button id="btn-frontend-debug" class="btn btn-secondary btn-sm" title="Start Frontend and launch Browser Debugger">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+              Debug
+            </button>
             <button id="btn-frontend-stop" class="btn btn-danger btn-sm" title="Stop Frontend process" disabled>
               <svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"></rect></svg>
               Stop
@@ -321,6 +333,145 @@ export function buildDashboardHtml(
           </div>
         </section>
       </div>
+
+      <!-- DEBUG MANAGER SECTION (Spring Boot JDWP & Angular Browser) -->
+      <section class="card" aria-labelledby="section-debug-title">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2 id="section-debug-title" class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+              </svg>
+              Debug Manager (Spring Boot &amp; Angular)
+            </h2>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button id="btn-sync-launch-json" class="btn btn-secondary btn-sm" title="Generate/Update .vscode/launch.json with DEM configurations">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Sync launch.json
+            </button>
+            <button id="btn-debug-all-sec" class="btn btn-primary btn-sm" title="Start Backend (JDWP) and Frontend processes in debug mode">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              Debug All
+            </button>
+          </div>
+        </div>
+
+        <div class="debug-cards-grid">
+          <!-- Java Spring Boot JDWP Card -->
+          <div class="debug-target-box">
+            <div class="debug-target-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="debug-target-title">Spring Boot (JDWP)</span>
+                <span id="badge-backend-debug" class="badge badge-stopped">
+                  <span class="badge-dot"></span>
+                  <span id="badge-backend-debug-text">Debug Inactive</span>
+                </span>
+              </div>
+              <span id="badge-backend-attached" class="badge badge-idle">
+                <span id="badge-backend-attached-text">Debugger Detached</span>
+              </span>
+            </div>
+
+            <div class="debug-meta-grid">
+              <div><span class="meta-label">JDWP Port:</span> <span id="debug-meta-jdwp-port" class="meta-value">5005</span></div>
+              <div><span class="meta-label">Server Port:</span> <span id="debug-meta-server-port" class="meta-value">8080</span></div>
+              <div><span class="meta-label">Spring Profile:</span> <span id="debug-meta-spring-profile" class="meta-value">dev</span></div>
+              <div><span class="meta-label">JDWP Mode:</span> <span id="debug-meta-jdwp-mode" class="meta-value">javaToolOptions</span></div>
+            </div>
+
+            <!-- Startup Milestones -->
+            <div class="milestones-container">
+              <div class="milestones-label">Startup Milestones:</div>
+              <div class="milestones-pills">
+                <span id="milestone-jdwp" class="milestone-pill milestone-pending">
+                  <span class="milestone-icon">○</span>
+                  <span id="milestone-jdwp-text">JDWP Listening (:5005)</span>
+                </span>
+                <span id="milestone-server" class="milestone-pill milestone-pending">
+                  <span class="milestone-icon">○</span>
+                  <span id="milestone-server-text">Tomcat/Netty (:8080)</span>
+                </span>
+                <span id="milestone-ready" class="milestone-pill milestone-pending">
+                  <span class="milestone-icon">○</span>
+                  <span id="milestone-ready-text">Spring Boot Ready</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="debug-actions-row">
+              <button id="btn-dbg-start-backend" class="btn btn-primary btn-sm" title="Start Backend in JDWP debug mode">
+                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Debug Backend
+              </button>
+              <button id="btn-dbg-attach-backend" class="btn btn-secondary btn-sm" title="Attach VS Code Java debugger to Spring Boot JDWP port">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                Attach Debugger
+              </button>
+              <button id="btn-dbg-open-backend-url" class="btn btn-secondary btn-sm" title="Open Spring Boot HTTP endpoint in external browser">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                Open :8080
+              </button>
+            </div>
+          </div>
+
+          <!-- Angular Browser Debugger Card -->
+          <div class="debug-target-box">
+            <div class="debug-target-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="debug-target-title">Frontend Browser (Angular)</span>
+                <span id="badge-frontend-debug" class="badge badge-stopped">
+                  <span class="badge-dot"></span>
+                  <span id="badge-frontend-debug-text">Debug Inactive</span>
+                </span>
+              </div>
+              <span id="badge-frontend-attached" class="badge badge-idle">
+                <span id="badge-frontend-attached-text">Browser Detached</span>
+              </span>
+            </div>
+
+            <div class="debug-meta-grid">
+              <div><span class="meta-label">Dev Server URL:</span> <span id="debug-meta-frontend-url" class="meta-value">http://localhost:4200</span></div>
+              <div><span class="meta-label">Browser:</span> <span id="debug-meta-browser-type" class="meta-value">Chrome (pwa-chrome)</span></div>
+            </div>
+
+            <div class="milestones-container" style="min-height: 48px; display: flex; align-items: center;">
+              <span class="form-hint">Supports sourcemap breakpoints in TypeScript / Angular components.</span>
+            </div>
+
+            <div class="debug-actions-row">
+              <button id="btn-dbg-start-frontend" class="btn btn-primary btn-sm" title="Start Frontend in debug mode and attach browser">
+                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                Debug Frontend
+              </button>
+              <button id="btn-dbg-attach-frontend" class="btn btn-secondary btn-sm" title="Attach Chrome/Edge browser debugger to Angular dev server">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                Attach Browser
+              </button>
+              <button id="btn-dbg-open-frontend-url" class="btn btn-secondary btn-sm" title="Open Angular app in browser">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                Open App
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Breakpoints Explorer Sub-Card -->
+        <div class="breakpoints-card">
+          <div class="breakpoints-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="breakpoints-title">Workspace Breakpoints</span>
+              <span id="breakpoints-count-badge" class="badge badge-idle">0</span>
+            </div>
+            <button id="btn-clear-breakpoints" class="btn btn-secondary btn-sm" title="Remove all breakpoints from workspace">
+              Clear All
+            </button>
+          </div>
+          <div id="breakpoints-table-container" class="breakpoints-table-container">
+            <div class="breakpoints-empty-msg">No breakpoints set. Click in editor gutters to place breakpoints and manage them here.</div>
+          </div>
+        </div>
+      </section>
 
       <!-- E. ENVIRONMENT DIAGNOSTICS -->
       <section class="card" aria-labelledby="section-diagnostics-title">
@@ -395,7 +546,11 @@ export function buildDashboardHtml(
             </svg>
             Project Configuration (.vscode/project-build-manager.json)
           </h2>
-          <button id="btn-toggle-config-panel" class="btn btn-secondary btn-sm">Expand</button>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button id="btn-cfg-export" class="btn btn-secondary btn-sm" title="Export configuration to a JSON file">Export</button>
+            <button id="btn-cfg-import" class="btn btn-secondary btn-sm" title="Import configuration from a JSON file">Import</button>
+            <button id="btn-toggle-config-panel" class="btn btn-secondary btn-sm">Expand</button>
+          </div>
         </div>
 
         <div id="config-panel-body" class="hidden" style="display: flex; flex-direction: column; gap: 10px;">
@@ -445,7 +600,7 @@ export function buildDashboardHtml(
 
             <!-- Backend Config -->
             <div class="config-group">
-              <h3 class="config-group-title">Backend Target</h3>
+              <h3 class="config-group-title">Backend Target (Spring Boot)</h3>
               <div class="form-field">
                 <label for="cfg-backend-cwd">Backend Working Directory</label>
                 <input id="cfg-backend-cwd" type="text" class="text-input" placeholder="." />
@@ -455,8 +610,46 @@ export function buildDashboardHtml(
                 <input id="cfg-backend-cmd" type="text" class="text-input" placeholder="gradle" />
               </div>
               <div class="form-field">
-                <label for="cfg-backend-args">Backend Arguments (space-separated)</label>
-                <input id="cfg-backend-args" type="text" class="text-input" placeholder="root:bootRun" />
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                  <label for="cfg-backend-args">Backend Arguments (space-separated)</label>
+                  <span id="cfg-backend-profile-tag" style="font-size: 11px; font-weight: 600; color: var(--dem-accent, #4fc1ff);"></span>
+                </div>
+                <input id="cfg-backend-args" type="text" class="text-input" placeholder="run or root:bootRun" />
+                <span id="cfg-backend-args-hint" style="font-size: 11px; color: var(--dem-accent, #4fc1ff); margin-top: 3px; display: block;"></span>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="form-field">
+                  <label for="cfg-backend-debug-port">JDWP Debug Port</label>
+                  <input id="cfg-backend-debug-port" type="number" class="text-input" placeholder="5005" />
+                </div>
+                <div class="form-field">
+                  <label for="cfg-backend-server-port">Server HTTP Port</label>
+                  <input id="cfg-backend-server-port" type="number" class="text-input" placeholder="8080" />
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="form-field">
+                  <label for="cfg-backend-spring-profile">Spring Profile</label>
+                  <input id="cfg-backend-spring-profile" type="text" class="text-input" placeholder="dev" />
+                </div>
+                <div class="form-field">
+                  <label for="cfg-backend-jdwp-mode">JDWP Strategy</label>
+                  <select id="cfg-backend-jdwp-mode" class="select-input">
+                    <option value="javaToolOptions">JAVA_TOOL_OPTIONS (Default)</option>
+                    <option value="gradleDebugJvm">Gradle --debug-jvm</option>
+                    <option value="customArgs">Custom Args</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display: flex; gap: 16px; margin-top: 4px;">
+                <label class="autoscroll-label" title="Suspend JVM on startup until debugger attaches">
+                  <input id="cfg-backend-jvm-suspend" type="checkbox" />
+                  JVM Suspend
+                </label>
+                <label class="autoscroll-label" title="Automatically attach VS Code Java debugger once JDWP port is ready">
+                  <input id="cfg-backend-auto-attach" type="checkbox" checked />
+                  Auto-Attach Debugger
+                </label>
               </div>
             </div>
 
@@ -472,6 +665,41 @@ export function buildDashboardHtml(
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                   <input id="cfg-frontend-cmd" type="text" class="text-input" placeholder="npm" title="Frontend Command" />
                   <input id="cfg-frontend-args" type="text" class="text-input" placeholder="start" title="Frontend Arguments" />
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                <div class="form-field">
+                  <label for="cfg-frontend-dev-url">Dev Server URL</label>
+                  <input id="cfg-frontend-dev-url" type="text" class="text-input" placeholder="http://localhost:4200" />
+                </div>
+                <div class="form-field">
+                  <label for="cfg-frontend-browser-type">Browser</label>
+                  <select id="cfg-frontend-browser-type" class="select-input">
+                    <option value="chrome">Chrome</option>
+                    <option value="msedge">Edge</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-field">
+                <label for="cfg-frontend-web-root">Frontend Web Root</label>
+                <input id="cfg-frontend-web-root" type="text" class="text-input" placeholder="\${workspaceFolder}/frontend" />
+              </div>
+              <div class="form-field">
+                <label for="cfg-frontend-browser-executable">Browser Executable Path (Optional)</label>
+                <input id="cfg-frontend-browser-executable" type="text" class="text-input" placeholder="C:\Users\...\chrome.exe (Blank for default)" />
+              </div>
+              <div class="form-field">
+                <label for="cfg-frontend-user-data-dir">User Data Directory (Optional)</label>
+                <input id="cfg-frontend-user-data-dir" type="text" class="text-input" placeholder="D:\ChromeData\dev (Blank for temp profile)" />
+              </div>
+              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                <div class="form-field">
+                  <label for="cfg-frontend-browser-args">Custom Browser Flags</label>
+                  <input id="cfg-frontend-browser-args" type="text" class="text-input" placeholder="--disable-web-security --disable-site-isolation-trials" />
+                </div>
+                <div class="form-field">
+                  <label for="cfg-frontend-browser-debug-port">CDP Debug Port</label>
+                  <input id="cfg-frontend-browser-debug-port" type="number" class="text-input" placeholder="9222" />
                 </div>
               </div>
               <div class="form-field">
@@ -493,6 +721,8 @@ export function buildDashboardHtml(
               Saving requires confirmation before updating <code>.vscode/project-build-manager.json</code>. Never store secrets or tokens here.
             </span>
             <div class="config-footer-actions">
+              <button id="btn-cfg-export-foot" class="btn btn-secondary" title="Export configuration to a JSON file">Export Config</button>
+              <button id="btn-cfg-import-foot" class="btn btn-secondary" title="Import configuration from a JSON file">Import Config</button>
               <button id="btn-cfg-cancel" class="btn btn-secondary">Cancel</button>
               <button id="btn-cfg-save" class="btn btn-primary">Save Configuration</button>
             </div>

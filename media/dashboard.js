@@ -9,6 +9,9 @@
   let isConfigOpen = false;
   let isConfigDirty = false;
   let editingProfileId = null;
+  let lastLogsKey = "";
+  let lastBreakpointsKey = "";
+  let lastDiagKey = "";
 
   const els = {
     noWorkspaceCard: document.getElementById("no-workspace-card"),
@@ -48,6 +51,7 @@
     btnQaRunBackend: document.getElementById("btn-qa-run-backend"),
     btnQaRunFrontend: document.getElementById("btn-qa-run-frontend"),
     btnBuildProject: document.getElementById("btn-build-project"),
+    btnDebugAll: document.getElementById("btn-debug-all"),
     btnStopAll: document.getElementById("btn-stop-all"),
     btnRestartAll: document.getElementById("btn-restart-all"),
     buildStatusBadge: document.getElementById("build-status-badge"),
@@ -65,6 +69,7 @@
     backendStartTime: document.getElementById("backend-start-time"),
     backendSummary: document.getElementById("backend-summary"),
     btnBackendRun: document.getElementById("btn-backend-run"),
+    btnBackendDebug: document.getElementById("btn-backend-debug"),
     btnBackendStop: document.getElementById("btn-backend-stop"),
     btnBackendRestart: document.getElementById("btn-backend-restart"),
     btnBackendTerminal: document.getElementById("btn-backend-terminal"),
@@ -78,9 +83,46 @@
     frontendStartTime: document.getElementById("frontend-start-time"),
     frontendSummary: document.getElementById("frontend-summary"),
     btnFrontendRun: document.getElementById("btn-frontend-run"),
+    btnFrontendDebug: document.getElementById("btn-frontend-debug"),
     btnFrontendStop: document.getElementById("btn-frontend-stop"),
     btnFrontendRestart: document.getElementById("btn-frontend-restart"),
     btnFrontendTerminal: document.getElementById("btn-frontend-terminal"),
+
+    // Debug Manager Elements
+    btnSyncLaunchJson: document.getElementById("btn-sync-launch-json"),
+    btnDebugAllSec: document.getElementById("btn-debug-all-sec"),
+    badgeBackendDebug: document.getElementById("badge-backend-debug"),
+    badgeBackendDebugText: document.getElementById("badge-backend-debug-text"),
+    badgeBackendAttached: document.getElementById("badge-backend-attached"),
+    badgeBackendAttachedText: document.getElementById("badge-backend-attached-text"),
+    debugMetaJdwpPort: document.getElementById("debug-meta-jdwp-port"),
+    debugMetaServerPort: document.getElementById("debug-meta-server-port"),
+    debugMetaSpringProfile: document.getElementById("debug-meta-spring-profile"),
+    debugMetaJdwpMode: document.getElementById("debug-meta-jdwp-mode"),
+    milestoneJdwp: document.getElementById("milestone-jdwp"),
+    milestoneJdwpText: document.getElementById("milestone-jdwp-text"),
+    milestoneServer: document.getElementById("milestone-server"),
+    milestoneServerText: document.getElementById("milestone-server-text"),
+    milestoneReady: document.getElementById("milestone-ready"),
+    milestoneReadyText: document.getElementById("milestone-ready-text"),
+    btnDbgStartBackend: document.getElementById("btn-dbg-start-backend"),
+    btnDbgAttachBackend: document.getElementById("btn-dbg-attach-backend"),
+    btnDbgOpenBackendUrl: document.getElementById("btn-dbg-open-backend-url"),
+
+    badgeFrontendDebug: document.getElementById("badge-frontend-debug"),
+    badgeFrontendDebugText: document.getElementById("badge-frontend-debug-text"),
+    badgeFrontendAttached: document.getElementById("badge-frontend-attached"),
+    badgeFrontendAttachedText: document.getElementById("badge-frontend-attached-text"),
+    debugMetaFrontendUrl: document.getElementById("debug-meta-frontend-url"),
+    debugMetaBrowserType: document.getElementById("debug-meta-browser-type"),
+    btnDbgStartFrontend: document.getElementById("btn-dbg-start-frontend"),
+    btnDbgAttachFrontend: document.getElementById("btn-dbg-attach-frontend"),
+    btnDbgOpenFrontendUrl: document.getElementById("btn-dbg-open-frontend-url"),
+
+    // Breakpoints
+    breakpointsCountBadge: document.getElementById("breakpoints-count-badge"),
+    btnClearBreakpoints: document.getElementById("btn-clear-breakpoints"),
+    breakpointsTableContainer: document.getElementById("breakpoints-table-container"),
 
     // Diagnostics
     diagSubtitle: document.getElementById("diag-subtitle"),
@@ -107,17 +149,36 @@
     cfgJavaHome: document.getElementById("cfg-java-home"),
     cfgGradleHome: document.getElementById("cfg-gradle-home"),
     cfgNodeHome: document.getElementById("cfg-node-home"),
+    cfgBackendProfileTag: document.getElementById("cfg-backend-profile-tag"),
     cfgBackendCwd: document.getElementById("cfg-backend-cwd"),
     cfgBackendCmd: document.getElementById("cfg-backend-cmd"),
     cfgBackendArgs: document.getElementById("cfg-backend-args"),
+    cfgBackendArgsHint: document.getElementById("cfg-backend-args-hint"),
+    cfgBackendDebugPort: document.getElementById("cfg-backend-debug-port"),
+    cfgBackendServerPort: document.getElementById("cfg-backend-server-port"),
+    cfgBackendSpringProfile: document.getElementById("cfg-backend-spring-profile"),
+    cfgBackendJdwpMode: document.getElementById("cfg-backend-jdwp-mode"),
+    cfgBackendJvmSuspend: document.getElementById("cfg-backend-jvm-suspend"),
+    cfgBackendAutoAttach: document.getElementById("cfg-backend-auto-attach"),
     cfgFrontendCwd: document.getElementById("cfg-frontend-cwd"),
     cfgFrontendCmd: document.getElementById("cfg-frontend-cmd"),
     cfgFrontendArgs: document.getElementById("cfg-frontend-args"),
+    cfgFrontendDevUrl: document.getElementById("cfg-frontend-dev-url"),
+    cfgFrontendBrowserType: document.getElementById("cfg-frontend-browser-type"),
+    cfgFrontendWebRoot: document.getElementById("cfg-frontend-web-root"),
+    cfgFrontendBrowserExecutable: document.getElementById("cfg-frontend-browser-executable"),
+    cfgFrontendUserDataDir: document.getElementById("cfg-frontend-user-data-dir"),
+    cfgFrontendBrowserArgs: document.getElementById("cfg-frontend-browser-args"),
+    cfgFrontendBrowserDebugPort: document.getElementById("cfg-frontend-browser-debug-port"),
     cfgBuildCwd: document.getElementById("cfg-build-cwd"),
     cfgBuildCmd: document.getElementById("cfg-build-cmd"),
     cfgBuildArgs: document.getElementById("cfg-build-args"),
     btnCfgCancel: document.getElementById("btn-cfg-cancel"),
-    btnCfgSave: document.getElementById("btn-cfg-save")
+    btnCfgSave: document.getElementById("btn-cfg-save"),
+    btnCfgExport: document.getElementById("btn-cfg-export"),
+    btnCfgImport: document.getElementById("btn-cfg-import"),
+    btnCfgExportFoot: document.getElementById("btn-cfg-export-foot"),
+    btnCfgImportFoot: document.getElementById("btn-cfg-import-foot")
   };
 
   function postCommand(command) {
@@ -389,6 +450,175 @@
     }
   }
 
+  function renderDebug(debug, rawConfig) {
+    if (!debug) return;
+
+    // Backend Debug State
+    if (debug.backendDebugActive) {
+      setStatusBadge(els.badgeBackendDebug, els.badgeBackendDebugText, "running", "Debug Active");
+    } else {
+      setStatusBadge(els.badgeBackendDebug, els.badgeBackendDebugText, "stopped", "Debug Inactive");
+    }
+
+    if (debug.backendAttached) {
+      setStatusBadge(els.badgeBackendAttached, els.badgeBackendAttachedText, "passed", "Debugger Attached");
+    } else {
+      setStatusBadge(els.badgeBackendAttached, els.badgeBackendAttachedText, "idle", "Debugger Detached");
+    }
+
+    const beDebugPort = debug.backendDebugPort || rawConfig?.backend?.debugPort || 5005;
+    const beServerPort = debug.backendServerPort || rawConfig?.backend?.serverPort || 8080;
+    const beSpringProfile = rawConfig?.backend?.springProfile || "none";
+    const beJdwpMode = rawConfig?.backend?.jdwpMode || "javaToolOptions";
+
+    if (els.debugMetaJdwpPort) els.debugMetaJdwpPort.textContent = beDebugPort;
+    if (els.debugMetaServerPort) els.debugMetaServerPort.textContent = beServerPort;
+    if (els.debugMetaSpringProfile) els.debugMetaSpringProfile.textContent = beSpringProfile;
+    if (els.debugMetaJdwpMode) els.debugMetaJdwpMode.textContent = beJdwpMode;
+
+    // Backend Milestones
+    const ms = debug.springBootMilestones || {};
+    if (els.milestoneJdwp) {
+      if (ms.jdwpListening) {
+        els.milestoneJdwp.className = "milestone-pill milestone-active";
+        els.milestoneJdwpText.textContent = "JDWP Listening (:" + (ms.jdwpPort || beDebugPort) + ")";
+      } else {
+        els.milestoneJdwp.className = "milestone-pill milestone-pending";
+        els.milestoneJdwpText.textContent = "JDWP Listening (:" + beDebugPort + ")";
+      }
+    }
+
+    if (els.milestoneServer) {
+      if (ms.serverStarted) {
+        els.milestoneServer.className = "milestone-pill milestone-active";
+        els.milestoneServerText.textContent = "Tomcat/Netty (:" + (ms.serverPort || beServerPort) + ")";
+      } else {
+        els.milestoneServer.className = "milestone-pill milestone-pending";
+        els.milestoneServerText.textContent = "Tomcat/Netty (:" + beServerPort + ")";
+      }
+    }
+
+    if (els.milestoneReady) {
+      if (ms.appReady) {
+        els.milestoneReady.className = "milestone-pill milestone-active";
+        els.milestoneReadyText.textContent =
+          "Spring Boot Ready" + (ms.readyTimeSeconds ? " (" + ms.readyTimeSeconds + "s)" : "");
+      } else {
+        els.milestoneReady.className = "milestone-pill milestone-pending";
+        els.milestoneReadyText.textContent = "Spring Boot Ready";
+      }
+    }
+
+    // Frontend Debug State
+    if (debug.frontendDebugActive) {
+      setStatusBadge(els.badgeFrontendDebug, els.badgeFrontendDebugText, "running", "Debug Active");
+    } else {
+      setStatusBadge(els.badgeFrontendDebug, els.badgeFrontendDebugText, "stopped", "Debug Inactive");
+    }
+
+    if (debug.frontendAttached) {
+      setStatusBadge(els.badgeFrontendAttached, els.badgeFrontendAttachedText, "passed", "Browser Attached");
+    } else {
+      setStatusBadge(els.badgeFrontendAttached, els.badgeFrontendAttachedText, "idle", "Browser Detached");
+    }
+
+    const feUrl = debug.frontendDevServerUrl || rawConfig?.frontend?.devServerUrl || "http://localhost:4200";
+    const feBrowser =
+      debug.browserType === "msedge" ? "Microsoft Edge (pwa-msedge)" : "Google Chrome (pwa-chrome)";
+    if (els.debugMetaFrontendUrl) els.debugMetaFrontendUrl.textContent = feUrl;
+    if (els.debugMetaBrowserType) els.debugMetaBrowserType.textContent = feBrowser;
+  }
+
+  function renderBreakpoints(breakpoints) {
+    if (!els.breakpointsTableContainer) return;
+    const bps = breakpoints || [];
+    if (els.breakpointsCountBadge) {
+      els.breakpointsCountBadge.textContent = bps.length;
+    }
+
+    if (bps.length === 0) {
+      els.breakpointsTableContainer.innerHTML =
+        '<div class="breakpoints-empty-msg">No breakpoints set. Click in editor gutters to place breakpoints and manage them here.</div>';
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.className = "breakpoints-table";
+
+    const thead = document.createElement("thead");
+    thead.innerHTML =
+      '<tr><th style="width: 32px; text-align: center;">On</th><th>Location</th><th>Condition</th><th style="width: 70px; text-align: right;">Action</th></tr>';
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for (const bp of bps) {
+      const tr = document.createElement("tr");
+
+      // Checkbox
+      const tdCheck = document.createElement("td");
+      tdCheck.style.textAlign = "center";
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.checked = Boolean(bp.enabled);
+      chk.title = bp.enabled ? "Disable Breakpoint" : "Enable Breakpoint";
+      chk.addEventListener("change", () => {
+        postCommand({ type: "toggleBreakpoint", id: bp.id });
+      });
+      tdCheck.appendChild(chk);
+      tr.appendChild(tdCheck);
+
+      // File & Line
+      const tdLoc = document.createElement("td");
+      const link = document.createElement("span");
+      link.className = "bp-file-link";
+      link.textContent = bp.relativeFilePath + ":" + bp.line;
+      link.title = bp.filePath + ":" + bp.line + " — Click to open in editor";
+      link.addEventListener("click", () => {
+        postCommand({ type: "jumpToBreakpoint", filePath: bp.filePath, line: bp.line });
+      });
+      tdLoc.appendChild(link);
+      tr.appendChild(tdLoc);
+
+      // Condition
+      const tdCond = document.createElement("td");
+      if (bp.condition || bp.hitCondition || bp.logMessage) {
+        const condSpan = document.createElement("span");
+        condSpan.className = "bp-condition";
+        condSpan.textContent = bp.condition
+          ? "expr: " + bp.condition
+          : bp.hitCondition
+            ? "hit: " + bp.hitCondition
+            : "log: " + bp.logMessage;
+        tdCond.appendChild(condSpan);
+      } else {
+        tdCond.textContent = "—";
+        tdCond.style.color = "var(--dem-muted)";
+      }
+      tr.appendChild(tdCond);
+
+      // Action (remove)
+      const tdAct = document.createElement("td");
+      tdAct.style.textAlign = "right";
+      const btnRemove = document.createElement("button");
+      btnRemove.className = "btn btn-secondary btn-sm";
+      btnRemove.style.padding = "2px 6px";
+      btnRemove.style.fontSize = "10px";
+      btnRemove.textContent = "Remove";
+      btnRemove.title = "Remove Breakpoint";
+      btnRemove.addEventListener("click", () => {
+        postCommand({ type: "removeBreakpoint", id: bp.id });
+      });
+      tdAct.appendChild(btnRemove);
+      tr.appendChild(tdAct);
+
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
+    els.breakpointsTableContainer.innerHTML = "";
+    els.breakpointsTableContainer.appendChild(table);
+  }
+
   function renderLogs() {
     if (!els.logsViewport) return;
     const filtered =
@@ -492,15 +722,29 @@
     editingProfileId = state.activeProfileId || cfg.activeProfile;
     els.cfgEditProfileId.value = editingProfileId;
 
-    loadSelectedProfileIntoConfigInputs(editingProfileId);
-
     els.cfgBackendCwd.value = cfg.backend?.workingDirectory ?? ".";
     els.cfgBackendCmd.value = cfg.backend?.command ?? "gradle";
     els.cfgBackendArgs.value = (cfg.backend?.args || []).join(" ");
+    if (els.cfgBackendDebugPort) els.cfgBackendDebugPort.value = cfg.backend?.debugPort ?? 5005;
+    if (els.cfgBackendServerPort) els.cfgBackendServerPort.value = cfg.backend?.serverPort ?? 8080;
+    if (els.cfgBackendSpringProfile) els.cfgBackendSpringProfile.value = cfg.backend?.springProfile ?? "dev";
+    if (els.cfgBackendJdwpMode) els.cfgBackendJdwpMode.value = cfg.backend?.jdwpMode ?? "javaToolOptions";
+    if (els.cfgBackendJvmSuspend) els.cfgBackendJvmSuspend.checked = Boolean(cfg.backend?.jvmSuspend);
+    if (els.cfgBackendAutoAttach) els.cfgBackendAutoAttach.checked = cfg.backend?.autoAttachDebugger !== false;
+
+    // Load profile-specific fields (Java, Gradle, Node, and profile-specific backendArgs)
+    loadSelectedProfileIntoConfigInputs(editingProfileId);
 
     els.cfgFrontendCwd.value = cfg.frontend?.workingDirectory ?? "frontend";
     els.cfgFrontendCmd.value = cfg.frontend?.command ?? "npm";
     els.cfgFrontendArgs.value = (cfg.frontend?.args || []).join(" ");
+    if (els.cfgFrontendDevUrl) els.cfgFrontendDevUrl.value = cfg.frontend?.devServerUrl ?? "http://localhost:4200";
+    if (els.cfgFrontendBrowserType) els.cfgFrontendBrowserType.value = cfg.frontend?.browserType ?? "chrome";
+    if (els.cfgFrontendWebRoot) els.cfgFrontendWebRoot.value = cfg.frontend?.webRoot ?? "${workspaceFolder}/frontend";
+    if (els.cfgFrontendBrowserExecutable) els.cfgFrontendBrowserExecutable.value = cfg.frontend?.browserExecutable ?? "";
+    if (els.cfgFrontendUserDataDir) els.cfgFrontendUserDataDir.value = cfg.frontend?.userDataDir ?? "";
+    if (els.cfgFrontendBrowserArgs) els.cfgFrontendBrowserArgs.value = (cfg.frontend?.browserArgs || []).join(" ");
+    if (els.cfgFrontendBrowserDebugPort) els.cfgFrontendBrowserDebugPort.value = cfg.frontend?.browserDebugPort ?? 9222;
 
     els.cfgBuildCwd.value = cfg.build?.workingDirectory ?? ".";
     els.cfgBuildCmd.value = cfg.build?.command ?? "gradle";
@@ -517,6 +761,20 @@
     els.cfgJavaHome.value = prof.javaHome || "";
     els.cfgGradleHome.value = prof.gradleHome || "";
     els.cfgNodeHome.value = prof.nodeVersion ? `nvm use ${prof.nodeVersion}` : (prof.nodeHome || "");
+    const profArgs = prof.backendArgs ? prof.backendArgs.join(" ") : (currentState.rawConfig.backend?.args || []).join(" ");
+    if (els.cfgBackendArgs) {
+      els.cfgBackendArgs.value = profArgs;
+    }
+    if (els.cfgBackendProfileTag) {
+      els.cfgBackendProfileTag.textContent = `cho profile [${profileId}]`;
+    }
+    if (els.cfgBackendArgsHint) {
+      if (prof.backendArgs && prof.backendArgs.length > 0) {
+        els.cfgBackendArgsHint.textContent = `⚡ Đang áp dụng lệnh riêng cho [${profileId}]: gradle ${profArgs}`;
+      } else {
+        els.cfgBackendArgsHint.textContent = `Dùng lệnh mặc định dự án cho [${profileId}]: gradle ${profArgs || "root:bootRun"}`;
+      }
+    }
   }
 
   function toggleConfigPanel(forceOpen) {
@@ -563,19 +821,33 @@
         javaHome: els.cfgJavaHome.value.trim(),
         gradleHome: els.cfgGradleHome.value.trim(),
         nodeHome: nodeHome,
-        nodeVersion: nodeVersion
+        nodeVersion: nodeVersion,
+        backendArgs: els.cfgBackendArgs?.value.trim() ? splitArgs(els.cfgBackendArgs.value) : undefined
       },
       backend: {
         workingDirectory: els.cfgBackendCwd.value.trim(),
         command: els.cfgBackendCmd.value.trim(),
         args: splitArgs(els.cfgBackendArgs.value),
-        terminalName: currentState.rawConfig.backend?.terminalName || "DEM: Backend"
+        terminalName: currentState.rawConfig.backend?.terminalName || "DEM: Backend",
+        debugPort: parseInt(els.cfgBackendDebugPort?.value, 10) || 5005,
+        serverPort: parseInt(els.cfgBackendServerPort?.value, 10) || 8080,
+        springProfile: els.cfgBackendSpringProfile?.value.trim() || undefined,
+        jdwpMode: els.cfgBackendJdwpMode?.value || "javaToolOptions",
+        jvmSuspend: Boolean(els.cfgBackendJvmSuspend?.checked),
+        autoAttachDebugger: Boolean(els.cfgBackendAutoAttach?.checked)
       },
       frontend: {
         workingDirectory: els.cfgFrontendCwd.value.trim(),
         command: els.cfgFrontendCmd.value.trim(),
         args: splitArgs(els.cfgFrontendArgs.value),
-        terminalName: currentState.rawConfig.frontend?.terminalName || "DEM: Frontend"
+        terminalName: currentState.rawConfig.frontend?.terminalName || "DEM: Frontend",
+        devServerUrl: els.cfgFrontendDevUrl?.value.trim() || "http://localhost:4200",
+        browserType: els.cfgFrontendBrowserType?.value || "chrome",
+        webRoot: els.cfgFrontendWebRoot?.value.trim() || "${workspaceFolder}/frontend",
+        browserExecutable: els.cfgFrontendBrowserExecutable?.value.trim() || undefined,
+        userDataDir: els.cfgFrontendUserDataDir?.value.trim() || undefined,
+        browserArgs: splitArgs(els.cfgFrontendBrowserArgs?.value),
+        browserDebugPort: parseInt(els.cfgFrontendBrowserDebugPort?.value, 10) || 9222
       },
       build: {
         workingDirectory: els.cfgBuildCwd.value.trim(),
@@ -633,11 +905,29 @@
     renderProcessCard("backend", state.backend);
     renderProcessCard("frontend", state.frontend);
     renderQuickActionsAndBuild(state.backend, state.frontend, state.build);
-    renderDiagnostics(state.diagnostics);
+    renderDebug(state.debug, state.rawConfig);
+
+    const bpKey = (state.breakpoints || []).map(b => `${b.id}:${b.enabled}`).join(";");
+    if (bpKey !== lastBreakpointsKey) {
+      lastBreakpointsKey = bpKey;
+      renderBreakpoints(state.breakpoints);
+    }
+
+    const diagKey = (state.diagnostics?.results || [])
+      .map(r => `${r.toolId}:${r.status}:${r.detectedVersion}`)
+      .join(";");
+    if (diagKey !== lastDiagKey) {
+      lastDiagKey = diagKey;
+      renderDiagnostics(state.diagnostics);
+    }
 
     if (Array.isArray(state.logs)) {
-      allLogs = state.logs;
-      renderLogs();
+      const logsKey = `${state.logs.length}:${state.logs[state.logs.length - 1]?.id ?? ""}`;
+      if (logsKey !== lastLogsKey) {
+        lastLogsKey = logsKey;
+        allLogs = state.logs;
+        renderLogs();
+      }
     }
 
     populateConfigForm(state, false);
@@ -687,6 +977,7 @@
 
   // Quick Actions
   els.btnRunAll?.addEventListener("click", () => postCommand({ type: "runAll" }));
+  els.btnDebugAll?.addEventListener("click", () => postCommand({ type: "debugAll" }));
   els.btnQaRunBackend?.addEventListener("click", () => postCommand({ type: "runBackend" }));
   els.btnQaRunFrontend?.addEventListener("click", () => postCommand({ type: "runFrontend" }));
   els.btnBuildProject?.addEventListener("click", () => postCommand({ type: "buildProject" }));
@@ -698,6 +989,7 @@
 
   // Process Card Actions
   els.btnBackendRun?.addEventListener("click", () => postCommand({ type: "runBackend" }));
+  els.btnBackendDebug?.addEventListener("click", () => postCommand({ type: "debugBackend" }));
   els.btnBackendStop?.addEventListener("click", () => postCommand({ type: "stopBackend" }));
   els.btnBackendRestart?.addEventListener("click", () => postCommand({ type: "restartBackend" }));
   els.btnBackendTerminal?.addEventListener("click", () =>
@@ -705,10 +997,38 @@
   );
 
   els.btnFrontendRun?.addEventListener("click", () => postCommand({ type: "runFrontend" }));
+  els.btnFrontendDebug?.addEventListener("click", () => postCommand({ type: "debugFrontend" }));
   els.btnFrontendStop?.addEventListener("click", () => postCommand({ type: "stopFrontend" }));
   els.btnFrontendRestart?.addEventListener("click", () => postCommand({ type: "restartFrontend" }));
   els.btnFrontendTerminal?.addEventListener("click", () =>
     postCommand({ type: "openTerminal", target: "frontend" })
+  );
+
+  // Debug Manager Actions
+  els.btnSyncLaunchJson?.addEventListener("click", () => postCommand({ type: "syncLaunchJson" }));
+  els.btnDebugAllSec?.addEventListener("click", () => postCommand({ type: "debugAll" }));
+  els.btnDbgStartBackend?.addEventListener("click", () => postCommand({ type: "debugBackend" }));
+  els.btnDbgAttachBackend?.addEventListener("click", () => postCommand({ type: "attachSpringBoot" }));
+  els.btnDbgOpenBackendUrl?.addEventListener("click", () => {
+    const port =
+      currentState?.debug?.backendServerPort ||
+      currentState?.rawConfig?.backend?.serverPort ||
+      8080;
+    postCommand({ type: "openUrl", url: "http://localhost:" + port });
+  });
+
+  els.btnDbgStartFrontend?.addEventListener("click", () => postCommand({ type: "debugFrontend" }));
+  els.btnDbgAttachFrontend?.addEventListener("click", () => postCommand({ type: "attachFrontend" }));
+  els.btnDbgOpenFrontendUrl?.addEventListener("click", () => {
+    const url =
+      currentState?.debug?.frontendDevServerUrl ||
+      currentState?.rawConfig?.frontend?.devServerUrl ||
+      "http://localhost:4200";
+    postCommand({ type: "openUrl", url });
+  });
+
+  els.btnClearBreakpoints?.addEventListener("click", () =>
+    postCommand({ type: "clearAllBreakpoints" })
   );
 
   // Diagnostics
@@ -756,9 +1076,24 @@
     }
   });
 
+  els.cfgActiveProfile?.addEventListener("change", () => {
+    const chosen = els.cfgActiveProfile.value;
+    if (els.cfgEditProfileId) {
+      els.cfgEditProfileId.value = chosen;
+      editingProfileId = chosen;
+      loadSelectedProfileIntoConfigInputs(chosen);
+    }
+  });
+
   els.cfgEditProfileId?.addEventListener("change", () => {
     editingProfileId = els.cfgEditProfileId.value;
     loadSelectedProfileIntoConfigInputs(editingProfileId);
+  });
+
+  els.cfgBackendArgs?.addEventListener("input", () => {
+    if (els.cfgBackendArgsHint) {
+      els.cfgBackendArgsHint.textContent = `⚡ Profile [${editingProfileId}] sẽ lưu lệnh: gradle ${els.cfgBackendArgs.value}`;
+    }
   });
 
   const configInputs = [
@@ -771,15 +1106,31 @@
     els.cfgBackendCwd,
     els.cfgBackendCmd,
     els.cfgBackendArgs,
+    els.cfgBackendDebugPort,
+    els.cfgBackendServerPort,
+    els.cfgBackendSpringProfile,
+    els.cfgBackendJdwpMode,
+    els.cfgBackendJvmSuspend,
+    els.cfgBackendAutoAttach,
     els.cfgFrontendCwd,
     els.cfgFrontendCmd,
     els.cfgFrontendArgs,
+    els.cfgFrontendDevUrl,
+    els.cfgFrontendBrowserType,
+    els.cfgFrontendWebRoot,
+    els.cfgFrontendBrowserExecutable,
+    els.cfgFrontendUserDataDir,
+    els.cfgFrontendBrowserArgs,
+    els.cfgFrontendBrowserDebugPort,
     els.cfgBuildCwd,
     els.cfgBuildCmd,
     els.cfgBuildArgs
   ];
   configInputs.forEach(input => {
     input?.addEventListener("input", () => {
+      isConfigDirty = true;
+    });
+    input?.addEventListener("change", () => {
       isConfigDirty = true;
     });
   });
@@ -792,6 +1143,11 @@
   });
 
   els.btnCfgSave?.addEventListener("click", handleSaveConfiguration);
+
+  els.btnCfgExport?.addEventListener("click", () => postCommand({ type: "exportConfiguration" }));
+  els.btnCfgImport?.addEventListener("click", () => postCommand({ type: "importConfiguration" }));
+  els.btnCfgExportFoot?.addEventListener("click", () => postCommand({ type: "exportConfiguration" }));
+  els.btnCfgImportFoot?.addEventListener("click", () => postCommand({ type: "importConfiguration" }));
 
   // Message Listener from Extension
   window.addEventListener("message", event => {
@@ -813,6 +1169,18 @@
           renderProcessCard("backend", msg.backend);
           renderProcessCard("frontend", msg.frontend);
           renderQuickActionsAndBuild(msg.backend, msg.frontend, msg.build);
+        }
+        break;
+      case "debugUpdated":
+        if (currentState) {
+          currentState.debug = msg.debug;
+          renderDebug(msg.debug, currentState.rawConfig);
+        }
+        break;
+      case "breakpointsUpdated":
+        if (currentState) {
+          currentState.breakpoints = msg.breakpoints;
+          renderBreakpoints(msg.breakpoints);
         }
         break;
       case "diagnosticsUpdated":

@@ -4,14 +4,41 @@ export type Profile = {
   gradleHome: string;
   nodeHome?: string;
   nodeVersion?: string;
+  backendCommand?: string;
+  backendArgs?: string[];
+  frontendCommand?: string;
+  frontendArgs?: string[];
 };
 
-export type RunTarget = {
+export type BackendTarget = {
   workingDirectory: string;
   command: string;
   args: string[];
   terminalName?: string;
+  debugPort?: number;
+  serverPort?: number;
+  springProfile?: string;
+  jdwpMode?: "javaToolOptions" | "gradleDebugJvm" | "customArgs";
+  jvmSuspend?: boolean;
+  customDebugArgs?: string[];
+  autoAttachDebugger?: boolean;
 };
+
+export type FrontendTarget = {
+  workingDirectory: string;
+  command: string;
+  args: string[];
+  terminalName?: string;
+  devServerUrl?: string;
+  browserType?: "chrome" | "msedge";
+  webRoot?: string;
+  browserExecutable?: string;
+  userDataDir?: string;
+  browserArgs?: string[];
+  browserDebugPort?: number;
+};
+
+export type RunTarget = BackendTarget;
 
 export type BuildTarget = {
   workingDirectory: string;
@@ -25,8 +52,8 @@ export type ProjectConfig = {
   projectRoot?: string;
   activeProfile: string;
   profiles: Record<string, Profile>;
-  backend: RunTarget;
-  frontend: RunTarget;
+  backend: BackendTarget;
+  frontend: FrontendTarget;
   build?: BuildTarget;
 };
 
@@ -114,6 +141,44 @@ export type ProfileDetailsView = {
   javaHomeExists: boolean;
   gradleHomeExists: boolean;
   nodeHomeExists: boolean;
+  backendCommand?: string;
+  backendArgs?: string[];
+};
+
+export type SpringBootMilestones = {
+  jdwpListening: boolean;
+  jdwpPort?: number;
+  serverStarted: boolean;
+  serverPort?: number;
+  appReady: boolean;
+  readyTimeSeconds?: number;
+  lastMilestoneText?: string;
+};
+
+export type DebugManagerState = {
+  backendDebugActive: boolean;
+  frontendDebugActive: boolean;
+  backendAttached: boolean;
+  frontendAttached: boolean;
+  backendDebugPort: number;
+  backendServerPort: number;
+  frontendDevServerUrl: string;
+  browserType: "chrome" | "msedge";
+  springBootMilestones: SpringBootMilestones;
+  breakpointsCount: number;
+};
+
+export type BreakpointInfo = {
+  id: string;
+  enabled: boolean;
+  verified: boolean;
+  filePath: string;
+  relativeFilePath: string;
+  line: number;
+  column?: number;
+  condition?: string;
+  hitCondition?: string;
+  logMessage?: string;
 };
 
 export type DashboardState = {
@@ -136,5 +201,7 @@ export type DashboardState = {
   diagnostics: DiagnosticsState;
   logs: LogEntry[];
   rawConfig?: ProjectConfig;
+  debug: DebugManagerState;
+  breakpoints: BreakpointInfo[];
 };
 

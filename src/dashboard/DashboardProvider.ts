@@ -14,6 +14,7 @@ import {
 } from "../services/EnvironmentService";
 import { ProcessManager } from "../services/ProcessManager";
 import { LogService } from "../services/LogService";
+import { DebugManager } from "../services/DebugManager";
 import { DashboardState, ProjectConfig } from "../types/project-config";
 
 export class DashboardProvider implements vscode.WebviewViewProvider, vscode.Disposable {
@@ -29,7 +30,8 @@ export class DashboardProvider implements vscode.WebviewViewProvider, vscode.Dis
     private readonly configService: ConfigService,
     private readonly environmentService: EnvironmentService,
     private readonly processManager: ProcessManager,
-    private readonly logService: LogService
+    private readonly logService: LogService,
+    private readonly debugManager: DebugManager
   ) {
     this.disposables.push(
       this.configService.onDidChange(() => {
@@ -64,6 +66,22 @@ export class DashboardProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.logService.onDidClear(() => {
         this.broadcastMessage({
           type: "logsCleared"
+        });
+      }),
+      this.debugManager.onDidChange(() => {
+        let cfg: ProjectConfig | undefined;
+        try {
+          cfg = this.configService.readConfig();
+        } catch {
+          cfg = undefined;
+        }
+        this.broadcastMessage({
+          type: "debugUpdated",
+          debug: this.debugManager.getDebugState(cfg)
+        });
+        this.broadcastMessage({
+          type: "breakpointsUpdated",
+          breakpoints: this.debugManager.getBreakpoints()
         });
       })
     );
@@ -231,6 +249,86 @@ export class DashboardProvider implements vscode.WebviewViewProvider, vscode.Dis
           break;
         }
 
+        case "debugBackend": {
+          await this.processManager.debugBackend();
+          break;
+        }
+
+        case "debugFrontend": {
+          await this.processManager.debugFrontend();
+          break;
+        }
+
+        case "debugAll": {
+          await this.processManager.debugAll();
+          break;
+        }
+
+        case "attachSpringBoot": {
+          const success = await this.debugManager.attachSpringBootDebugger();
+          if (success) {
+            this.broadcastMessage({
+              type: "notification",
+              level: "success",
+              message: "Attached VS Code Java debugger to Spring Boot."
+            });
+          }
+          break;
+        }
+
+        case "attachFrontend": {
+          const success = await this.debugManager.launchAngularDebugger();
+          if (success) {
+            this.broadcastMessage({
+              type: "notification",
+              level: "success",
+              message: "Attached browser debugger to Frontend."
+            });
+          }
+          break;
+        }
+
+        case "syncLaunchJson": {
+          const success = await this.debugManager.syncLaunchJson();
+          if (success) {
+            this.broadcastMessage({
+              type: "notification",
+              level: "success",
+              message: "Synchronized DEM debug configurations to .vscode/launch.json."
+            });
+          }
+          break;
+        }
+
+        case "openUrl": {
+          try {
+            await vscode.env.openExternal(vscode.Uri.parse(command.url));
+          } catch (err) {
+            vscode.window.showErrorMessage(`Unable to open URL: ${(err as Error).message}`);
+          }
+          break;
+        }
+
+        case "toggleBreakpoint": {
+          this.debugManager.toggleBreakpoint(command.id);
+          break;
+        }
+
+        case "removeBreakpoint": {
+          this.debugManager.removeBreakpoint(command.id);
+          break;
+        }
+
+        case "jumpToBreakpoint": {
+          await this.debugManager.jumpToBreakpoint(command.filePath, command.line);
+          break;
+        }
+
+        case "clearAllBreakpoints": {
+          this.debugManager.clearAllBreakpoints();
+          break;
+        }
+
         case "buildProject": {
           void this.processManager
             .runBuildProject(false)
@@ -383,6 +481,33 @@ export class DashboardProvider implements vscode.WebviewViewProvider, vscode.Dis
           );
           break;
         }
+
+        case "exportConfiguration": {
+          const exportedPath = await this.configService.exportConfiguration();
+          if (exportedPath) {
+            this.broadcastMessage({
+              type: "notification",
+              level: "success",
+              message: `Configuration exported to: ${path.basename(exportedPath)}`,
+              scope: "config"
+            });
+          }
+          break;
+        }
+
+        case "importConfiguration": {
+          const imported = await this.configService.importConfiguration();
+          if (imported) {
+            this.broadcastFullState();
+            this.broadcastMessage({
+              type: "notification",
+              level: "success",
+              message: "Configuration imported successfully and applied to workspace.",
+              scope: "config"
+            });
+          }
+          break;
+        }
       }
     } catch (err) {
       const message = (err as Error).message || String(err);
@@ -415,7 +540,9 @@ export class DashboardProvider implements vscode.WebviewViewProvider, vscode.Dis
         frontend: this.processManager.getProcessState("frontend"),
         build: this.processManager.getBuildState(),
         diagnostics: this.environmentService.getDiagnosticsState(),
-        logs: this.logService.getLogs("all")
+        logs: this.logService.getLogs("all"),
+        debug: this.debugManager.getDebugState(),
+        breakpoints: []
       };
     }
 
@@ -451,7 +578,9 @@ export class DashboardProvider implements vscode.WebviewViewProvider, vscode.Dis
           profile: active.profile
         }),
         logs: this.logService.getLogs("all"),
-        rawConfig: config
+        rawConfig: config,
+        debug: this.debugManager.getDebugState(config),
+        breakpoints: this.debugManager.getBreakpoints()
       };
     } catch (err) {
       const errorMsg = (err as Error).message;
@@ -475,7 +604,9 @@ export class DashboardProvider implements vscode.WebviewViewProvider, vscode.Dis
           isChecking: false,
           results: createInitialDiagnosticsResults()
         },
-        logs: this.logService.getLogs("all")
+        logs: this.logService.getLogs("all"),
+        debug: this.debugManager.getDebugState(),
+        breakpoints: this.debugManager.getBreakpoints()
       };
     }
   }

@@ -16,19 +16,30 @@ export function getPathKey(env: NodeJS.ProcessEnv): string {
 }
 
 import {
+  findNvmNodeHome,
   getNodeVersionFromProfile,
   isUsingNvm,
   runNvmUse
 } from "./NvmService";
 
-export { getNodeVersionFromProfile, isUsingNvm, runNvmUse };
+export { findNvmNodeHome, getNodeVersionFromProfile, isUsingNvm, runNvmUse };
 
 export function makeEnvironment(profile: Profile): Record<string, string> {
   const env: NodeJS.ProcessEnv = { ...process.env };
   const pathKey = getPathKey(env);
   const javaHome = normalizeConfigPathValue(profile.javaHome);
   const gradleHome = normalizeConfigPathValue(profile.gradleHome);
-  const nodeHome = profile.nodeHome ? normalizeConfigPathValue(profile.nodeHome) : "";
+  let nodeHome = profile.nodeHome ? normalizeConfigPathValue(profile.nodeHome) : "";
+
+  if (isUsingNvm(profile) || !nodeHome || !fs.existsSync(nodeHome)) {
+    const ver = getNodeVersionFromProfile(profile);
+    if (ver) {
+      const found = findNvmNodeHome(ver);
+      if (found) {
+        nodeHome = found;
+      }
+    }
+  }
 
   const additions = [
     path.join(javaHome, "bin"),
@@ -88,44 +99,70 @@ export function resolveCommand(
   }
 
   if (lower === "npm") {
-    if (isUsingNvm(profile)) {
+    let effectiveNodeHome = nodeHome;
+    if (isUsingNvm(profile) || !effectiveNodeHome || !fs.existsSync(effectiveNodeHome)) {
       const ver = getNodeVersionFromProfile(profile);
-      return {
-        executable: "npm",
-        usedFallback: false,
-        expectedPath: ver ? `nvm use ${ver}` : "nvm"
-      };
+      if (ver) {
+        const found = findNvmNodeHome(ver);
+        if (found) {
+          effectiveNodeHome = found;
+        }
+      }
     }
-    const candidates =
-      process.platform === "win32"
-        ? [path.join(nodeHome, "npm.cmd"), path.join(nodeHome, "npm")]
-        : [path.join(nodeHome, "bin", "npm"), path.join(nodeHome, "npm")];
-    const found = candidates.find(p => fs.existsSync(p));
+
+    if (effectiveNodeHome && fs.existsSync(effectiveNodeHome)) {
+      const candidates =
+        process.platform === "win32"
+          ? [path.join(effectiveNodeHome, "npm.cmd"), path.join(effectiveNodeHome, "npm")]
+          : [path.join(effectiveNodeHome, "bin", "npm"), path.join(effectiveNodeHome, "npm")];
+      const found = candidates.find(p => fs.existsSync(p));
+      if (found) {
+        return {
+          executable: found,
+          usedFallback: false,
+          expectedPath: found
+        };
+      }
+    }
+
     return {
-      executable: found ?? trimmed,
-      usedFallback: !found,
-      expectedPath: candidates[0]
+      executable: "npm",
+      usedFallback: false,
+      expectedPath: "npm"
     };
   }
 
   if (lower === "node") {
-    if (isUsingNvm(profile)) {
+    let effectiveNodeHome = nodeHome;
+    if (isUsingNvm(profile) || !effectiveNodeHome || !fs.existsSync(effectiveNodeHome)) {
       const ver = getNodeVersionFromProfile(profile);
-      return {
-        executable: "node",
-        usedFallback: false,
-        expectedPath: ver ? `nvm use ${ver}` : "nvm"
-      };
+      if (ver) {
+        const found = findNvmNodeHome(ver);
+        if (found) {
+          effectiveNodeHome = found;
+        }
+      }
     }
-    const candidates =
-      process.platform === "win32"
-        ? [path.join(nodeHome, "node.exe"), path.join(nodeHome, "node")]
-        : [path.join(nodeHome, "bin", "node"), path.join(nodeHome, "node")];
-    const found = candidates.find(p => fs.existsSync(p));
+
+    if (effectiveNodeHome && fs.existsSync(effectiveNodeHome)) {
+      const candidates =
+        process.platform === "win32"
+          ? [path.join(effectiveNodeHome, "node.exe"), path.join(effectiveNodeHome, "node")]
+          : [path.join(effectiveNodeHome, "bin", "node"), path.join(effectiveNodeHome, "node")];
+      const found = candidates.find(p => fs.existsSync(p));
+      if (found) {
+        return {
+          executable: found,
+          usedFallback: false,
+          expectedPath: found
+        };
+      }
+    }
+
     return {
-      executable: found ?? trimmed,
-      usedFallback: !found,
-      expectedPath: candidates[0]
+      executable: "node",
+      usedFallback: false,
+      expectedPath: "node"
     };
   }
 

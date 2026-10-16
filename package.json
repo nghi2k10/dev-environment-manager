@@ -2,13 +2,17 @@
   "name": "dev-environment-manager",
   "displayName": "Dev Environment Manager",
   "description": "Manage Java, Gradle and Node.js profiles and run backend/frontend projects.",
-  "version": "0.2.0",
+  "version": "0.2.5",
   "publisher": "local-dev-tools",
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -41,6 +45,33 @@
       {
         "command": "devEnvironmentManager.runAll",
         "title": "Dev Environment Manager: Run All"
+      },
+      {
+        "command": "devEnvironmentManager.debugBackend",
+        "title": "Dev Environment Manager: Debug Backend (Spring Boot JDWP)",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "devEnvironmentManager.debugFrontend",
+        "title": "Dev Environment Manager: Debug Frontend (Angular Browser)",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "devEnvironmentManager.debugAll",
+        "title": "Dev Environment Manager: Debug All (Fullstack Debug)",
+        "icon": "$(debug-all)"
+      },
+      {
+        "command": "devEnvironmentManager.attachSpringBoot",
+        "title": "Dev Environment Manager: Attach Java Debugger to Spring Boot"
+      },
+      {
+        "command": "devEnvironmentManager.attachFrontend",
+        "title": "Dev Environment Manager: Attach Browser Debugger to Frontend"
+      },
+      {
+        "command": "devEnvironmentManager.syncLaunchJson",
+        "title": "Dev Environment Manager: Sync Debug Configurations to launch.json"
       },
       {
         "command": "devEnvironmentManager.buildProject",
@@ -77,6 +108,16 @@
       {
         "command": "devEnvironmentManager.openFrontendTerminal",
         "title": "Dev Environment Manager: Open Frontend Terminal"
+      },
+      {
+        "command": "devEnvironmentManager.exportConfig",
+        "title": "Dev Environment Manager: Export Configuration",
+        "icon": "$(export)"
+      },
+      {
+        "command": "devEnvironmentManager.importConfig",
+        "title": "Dev Environment Manager: Import Configuration",
+        "icon": "$(import)"
       }
     ],
     "viewsContainers": {
@@ -126,7 +167,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
-    "package": "vsce package"
+    "package": "npx @vscode/vsce@3.2.1 package --allow-missing-repository --skip-license"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

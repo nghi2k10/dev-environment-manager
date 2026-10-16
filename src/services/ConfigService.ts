@@ -2,7 +2,9 @@ import * as vscode from "vscode";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {
+  BackendTarget,
   BuildTarget,
+  FrontendTarget,
   Profile,
   ProfileDetailsView,
   ProjectConfig,
@@ -139,38 +141,51 @@ export class ConfigService {
           label: "Java 8 / Gradle 3.5.1 / Node.js 10.24.1",
           javaHome: "E:\\soft\\jdk8",
           gradleHome: "E:\\soft\\gradle-3.5.1",
-          nodeVersion: "10.24.1"
+          nodeVersion: "10.24.1",
+          backendArgs: ["run"]
         },
         "java11-node14": {
           label: "Java 11 / Gradle 6.9.1 / Node.js 14.20.0",
           javaHome: "E:\\soft\\jdk11",
           gradleHome: "E:\\soft\\gradle-6.9.1",
-          nodeVersion: "14.20.0"
+          nodeVersion: "14.20.0",
+          backendArgs: ["run"]
         },
         "java17-node20": {
           label: "Java 17 / Gradle 8.8 / Node.js 20.14.0",
           javaHome: "E:\\soft\\jdk17",
           gradleHome: "E:\\soft\\gradle-8.8",
-          nodeVersion: "20.14.0"
+          nodeVersion: "20.14.0",
+          backendArgs: ["root:bootRun"]
         },
         "java21-node20": {
           label: "Java 21 / Gradle 8.8 / Node.js 20.14.0",
           javaHome: "E:\\soft\\jdk21",
           gradleHome: "E:\\soft\\gradle-8.8",
-          nodeVersion: "20.14.0"
+          nodeVersion: "20.14.0",
+          backendArgs: ["root:bootRun"]
         }
       },
       backend: {
         workingDirectory: ".",
         command: "gradle",
         args: ["root:bootRun"],
-        terminalName: "DEM: Backend"
+        terminalName: "DEM: Backend",
+        debugPort: 5005,
+        serverPort: 8080,
+        springProfile: "dev",
+        jdwpMode: "javaToolOptions",
+        jvmSuspend: false,
+        autoAttachDebugger: true
       },
       frontend: {
         workingDirectory: "frontend",
         command: "npm",
         args: ["start"],
-        terminalName: "DEM: Frontend"
+        terminalName: "DEM: Frontend",
+        devServerUrl: "http://localhost:4200",
+        browserType: "chrome",
+        webRoot: "${workspaceFolder}/frontend"
       },
       build: {
         workingDirectory: ".",
@@ -286,7 +301,21 @@ export class ConfigService {
         nodeVersion:
           typeof rawProfile.nodeVersion === "string" && rawProfile.nodeVersion.trim()
             ? rawProfile.nodeVersion.trim()
-            : undefined
+            : undefined,
+        backendCommand:
+          typeof rawProfile.backendCommand === "string" && rawProfile.backendCommand.trim()
+            ? rawProfile.backendCommand.trim()
+            : undefined,
+        backendArgs: Array.isArray(rawProfile.backendArgs)
+          ? rawProfile.backendArgs.map(String)
+          : undefined,
+        frontendCommand:
+          typeof rawProfile.frontendCommand === "string" && rawProfile.frontendCommand.trim()
+            ? rawProfile.frontendCommand.trim()
+            : undefined,
+        frontendArgs: Array.isArray(rawProfile.frontendArgs)
+          ? rawProfile.frontendArgs.map(String)
+          : undefined
       };
     }
 
@@ -296,18 +325,65 @@ export class ConfigService {
         ? cfg.activeProfile
         : firstProfileId;
 
-    const backend: RunTarget = {
-      workingDirectory: String(cfg.backend.workingDirectory ?? "."),
-      command: String(cfg.backend.command ?? "gradle"),
-      args: Array.isArray(cfg.backend.args) ? cfg.backend.args.map(String) : ["root:bootRun"],
-      terminalName: cfg.backend.terminalName ?? "DEM: Backend"
+    const backendRaw = (cfg.backend || {}) as Record<string, unknown>;
+    const backend: BackendTarget = {
+      workingDirectory: String(backendRaw.workingDirectory ?? "."),
+      command: String(backendRaw.command ?? "gradle"),
+      args: Array.isArray(backendRaw.args) ? backendRaw.args.map(String) : ["root:bootRun"],
+      terminalName: typeof backendRaw.terminalName === "string" ? backendRaw.terminalName : "DEM: Backend",
+      debugPort:
+        typeof backendRaw.debugPort === "number" && backendRaw.debugPort > 0
+          ? backendRaw.debugPort
+          : 5005,
+      serverPort:
+        typeof backendRaw.serverPort === "number" && backendRaw.serverPort > 0
+          ? backendRaw.serverPort
+          : 8080,
+      springProfile:
+        typeof backendRaw.springProfile === "string" && backendRaw.springProfile.trim()
+          ? backendRaw.springProfile.trim()
+          : undefined,
+      jdwpMode:
+        backendRaw.jdwpMode === "gradleDebugJvm" || backendRaw.jdwpMode === "customArgs"
+          ? backendRaw.jdwpMode
+          : "javaToolOptions",
+      jvmSuspend: Boolean(backendRaw.jvmSuspend),
+      customDebugArgs: Array.isArray(backendRaw.customDebugArgs)
+        ? backendRaw.customDebugArgs.map(String)
+        : undefined,
+      autoAttachDebugger: backendRaw.autoAttachDebugger !== false
     };
 
-    const frontend: RunTarget = {
-      workingDirectory: String(cfg.frontend.workingDirectory ?? "frontend"),
-      command: String(cfg.frontend.command ?? "npm"),
-      args: Array.isArray(cfg.frontend.args) ? cfg.frontend.args.map(String) : ["start"],
-      terminalName: cfg.frontend.terminalName ?? "DEM: Frontend"
+    const frontendRaw = (cfg.frontend || {}) as Record<string, unknown>;
+    const frontend: FrontendTarget = {
+      workingDirectory: String(frontendRaw.workingDirectory ?? "frontend"),
+      command: String(frontendRaw.command ?? "npm"),
+      args: Array.isArray(frontendRaw.args) ? frontendRaw.args.map(String) : ["start"],
+      terminalName: typeof frontendRaw.terminalName === "string" ? frontendRaw.terminalName : "DEM: Frontend",
+      devServerUrl:
+        typeof frontendRaw.devServerUrl === "string" && frontendRaw.devServerUrl.trim()
+          ? frontendRaw.devServerUrl.trim()
+          : "http://localhost:4200",
+      browserType: frontendRaw.browserType === "msedge" ? "msedge" : "chrome",
+      webRoot:
+        typeof frontendRaw.webRoot === "string" && frontendRaw.webRoot.trim()
+          ? frontendRaw.webRoot.trim()
+          : "${workspaceFolder}/frontend",
+      browserExecutable:
+        typeof frontendRaw.browserExecutable === "string" && frontendRaw.browserExecutable.trim()
+          ? frontendRaw.browserExecutable.trim()
+          : undefined,
+      userDataDir:
+        typeof frontendRaw.userDataDir === "string" && frontendRaw.userDataDir.trim()
+          ? frontendRaw.userDataDir.trim()
+          : undefined,
+      browserArgs: Array.isArray(frontendRaw.browserArgs)
+        ? frontendRaw.browserArgs.map(String)
+        : undefined,
+      browserDebugPort:
+        typeof frontendRaw.browserDebugPort === "number" && frontendRaw.browserDebugPort > 0
+          ? frontendRaw.browserDebugPort
+          : undefined
     };
 
     const build: BuildTarget = cfg.build
@@ -401,7 +477,9 @@ export class ConfigService {
         useNvm,
         javaHomeExists: Boolean(javaHome && fs.existsSync(javaHome)),
         gradleHomeExists: Boolean(gradleHome && fs.existsSync(gradleHome)),
-        nodeHomeExists: useNvm ? true : Boolean(rawNodeHome && fs.existsSync(rawNodeHome))
+        nodeHomeExists: useNvm ? true : Boolean(rawNodeHome && fs.existsSync(rawNodeHome)),
+        backendCommand: profile.backendCommand,
+        backendArgs: profile.backendArgs
       };
     });
   }
@@ -452,9 +530,70 @@ export class ConfigService {
     }
 
     const label = typeof prof.label === "string" && prof.label.trim() ? prof.label.trim() : undefined;
+    const backendCommand =
+      typeof prof.backendCommand === "string" && prof.backendCommand.trim()
+        ? prof.backendCommand.trim()
+        : undefined;
+    const backendArgs = Array.isArray(prof.backendArgs)
+      ? prof.backendArgs.map(String)
+      : undefined;
 
-    const backend = this.validateTargetSection(obj.backend, "Backend", "DEM: Backend");
-    const frontend = this.validateTargetSection(obj.frontend, "Frontend", "DEM: Frontend");
+    const backendBase = this.validateTargetSection(obj.backend, "Backend", "DEM: Backend");
+    const bRaw = obj.backend as Record<string, unknown>;
+    const backend: ConfigurationUpdatePayload["backend"] = {
+      ...backendBase,
+      debugPort:
+        typeof bRaw.debugPort === "number" && bRaw.debugPort > 0
+          ? bRaw.debugPort
+          : undefined,
+      serverPort:
+        typeof bRaw.serverPort === "number" && bRaw.serverPort > 0
+          ? bRaw.serverPort
+          : undefined,
+      springProfile:
+        typeof bRaw.springProfile === "string" ? bRaw.springProfile.trim() : undefined,
+      jdwpMode:
+        bRaw.jdwpMode === "gradleDebugJvm" || bRaw.jdwpMode === "customArgs"
+          ? bRaw.jdwpMode
+          : "javaToolOptions",
+      jvmSuspend: typeof bRaw.jvmSuspend === "boolean" ? bRaw.jvmSuspend : undefined,
+      customDebugArgs: Array.isArray(bRaw.customDebugArgs)
+        ? bRaw.customDebugArgs.map(String)
+        : undefined,
+      autoAttachDebugger:
+        typeof bRaw.autoAttachDebugger === "boolean" ? bRaw.autoAttachDebugger : undefined
+    };
+
+    const frontendBase = this.validateTargetSection(obj.frontend, "Frontend", "DEM: Frontend");
+    const fRaw = obj.frontend as Record<string, unknown>;
+    const frontend: ConfigurationUpdatePayload["frontend"] = {
+      ...frontendBase,
+      devServerUrl:
+        typeof fRaw.devServerUrl === "string" && fRaw.devServerUrl.trim()
+          ? fRaw.devServerUrl.trim()
+          : undefined,
+      browserType: fRaw.browserType === "msedge" ? "msedge" : "chrome",
+      webRoot:
+        typeof fRaw.webRoot === "string" && fRaw.webRoot.trim()
+          ? fRaw.webRoot.trim()
+          : undefined,
+      browserExecutable:
+        typeof fRaw.browserExecutable === "string" && fRaw.browserExecutable.trim()
+          ? fRaw.browserExecutable.trim()
+          : undefined,
+      userDataDir:
+        typeof fRaw.userDataDir === "string" && fRaw.userDataDir.trim()
+          ? fRaw.userDataDir.trim()
+          : undefined,
+      browserArgs: Array.isArray(fRaw.browserArgs)
+        ? fRaw.browserArgs.map(String)
+        : undefined,
+      browserDebugPort:
+        typeof fRaw.browserDebugPort === "number" && fRaw.browserDebugPort > 0
+          ? fRaw.browserDebugPort
+          : undefined
+    };
+
     const build = this.validateTargetSection(obj.build, "Build", "DEM: Build");
 
     const name = typeof obj.name === "string" && obj.name.trim() ? obj.name.trim() : undefined;
@@ -469,7 +608,9 @@ export class ConfigService {
         javaHome,
         gradleHome,
         nodeHome,
-        nodeVersion
+        nodeVersion,
+        backendCommand,
+        backendArgs
       },
       backend,
       frontend,
@@ -529,11 +670,108 @@ export class ConfigService {
     if (validated.editedProfile.nodeHome) {
       newProf.nodeHome = validated.editedProfile.nodeHome;
     }
+    if (validated.editedProfile.backendCommand !== undefined) {
+      newProf.backendCommand = validated.editedProfile.backendCommand;
+    } else if (existingProf.backendCommand !== undefined) {
+      newProf.backendCommand = existingProf.backendCommand;
+    }
+    if (validated.editedProfile.backendArgs !== undefined) {
+      newProf.backendArgs = validated.editedProfile.backendArgs;
+    } else if (existingProf.backendArgs !== undefined) {
+      newProf.backendArgs = existingProf.backendArgs;
+    }
 
     const updatedProfiles: Record<string, Profile> = {
       ...currentConfig.profiles,
       [validated.editedProfileId]: newProf
     };
+
+    const existingBackend = (existingRaw.backend ?? {}) as Record<string, unknown>;
+    const existingFrontend = (existingRaw.frontend ?? {}) as Record<string, unknown>;
+
+    const finalBackend: Record<string, unknown> = {
+      ...existingBackend,
+      workingDirectory: validated.backend.workingDirectory,
+      command: validated.backend.command,
+      args: validated.backend.args,
+      terminalName:
+        validated.backend.terminalName ?? currentConfig.backend.terminalName ?? "DEM: Backend"
+    };
+    if (validated.backend.debugPort !== undefined) {
+      finalBackend.debugPort = validated.backend.debugPort;
+    } else if (currentConfig.backend.debugPort !== undefined) {
+      finalBackend.debugPort = currentConfig.backend.debugPort;
+    }
+    if (validated.backend.serverPort !== undefined) {
+      finalBackend.serverPort = validated.backend.serverPort;
+    } else if (currentConfig.backend.serverPort !== undefined) {
+      finalBackend.serverPort = currentConfig.backend.serverPort;
+    }
+    if (validated.backend.springProfile !== undefined) {
+      finalBackend.springProfile = validated.backend.springProfile;
+    } else if (currentConfig.backend.springProfile !== undefined) {
+      finalBackend.springProfile = currentConfig.backend.springProfile;
+    }
+    if (validated.backend.jdwpMode !== undefined) {
+      finalBackend.jdwpMode = validated.backend.jdwpMode;
+    } else if (currentConfig.backend.jdwpMode !== undefined) {
+      finalBackend.jdwpMode = currentConfig.backend.jdwpMode;
+    }
+    if (validated.backend.jvmSuspend !== undefined) {
+      finalBackend.jvmSuspend = validated.backend.jvmSuspend;
+    } else if (currentConfig.backend.jvmSuspend !== undefined) {
+      finalBackend.jvmSuspend = currentConfig.backend.jvmSuspend;
+    }
+    if (validated.backend.customDebugArgs !== undefined) {
+      finalBackend.customDebugArgs = validated.backend.customDebugArgs;
+    }
+    if (validated.backend.autoAttachDebugger !== undefined) {
+      finalBackend.autoAttachDebugger = validated.backend.autoAttachDebugger;
+    }
+
+    const finalFrontend: Record<string, unknown> = {
+      ...existingFrontend,
+      workingDirectory: validated.frontend.workingDirectory,
+      command: validated.frontend.command,
+      args: validated.frontend.args,
+      terminalName:
+        validated.frontend.terminalName ?? currentConfig.frontend.terminalName ?? "DEM: Frontend"
+    };
+    if (validated.frontend.devServerUrl !== undefined) {
+      finalFrontend.devServerUrl = validated.frontend.devServerUrl;
+    } else if (currentConfig.frontend.devServerUrl !== undefined) {
+      finalFrontend.devServerUrl = currentConfig.frontend.devServerUrl;
+    }
+    if (validated.frontend.browserType !== undefined) {
+      finalFrontend.browserType = validated.frontend.browserType;
+    } else if (currentConfig.frontend.browserType !== undefined) {
+      finalFrontend.browserType = currentConfig.frontend.browserType;
+    }
+    if (validated.frontend.webRoot !== undefined) {
+      finalFrontend.webRoot = validated.frontend.webRoot;
+    } else if (currentConfig.frontend.webRoot !== undefined) {
+      finalFrontend.webRoot = currentConfig.frontend.webRoot;
+    }
+    if (validated.frontend.browserExecutable !== undefined) {
+      finalFrontend.browserExecutable = validated.frontend.browserExecutable;
+    } else if (currentConfig.frontend.browserExecutable !== undefined) {
+      finalFrontend.browserExecutable = currentConfig.frontend.browserExecutable;
+    }
+    if (validated.frontend.userDataDir !== undefined) {
+      finalFrontend.userDataDir = validated.frontend.userDataDir;
+    } else if (currentConfig.frontend.userDataDir !== undefined) {
+      finalFrontend.userDataDir = currentConfig.frontend.userDataDir;
+    }
+    if (validated.frontend.browserArgs !== undefined) {
+      finalFrontend.browserArgs = validated.frontend.browserArgs;
+    } else if (currentConfig.frontend.browserArgs !== undefined) {
+      finalFrontend.browserArgs = currentConfig.frontend.browserArgs;
+    }
+    if (validated.frontend.browserDebugPort !== undefined) {
+      finalFrontend.browserDebugPort = validated.frontend.browserDebugPort;
+    } else if (currentConfig.frontend.browserDebugPort !== undefined) {
+      finalFrontend.browserDebugPort = currentConfig.frontend.browserDebugPort;
+    }
 
     const finalJson: Record<string, unknown> = {
       ...existingRaw,
@@ -541,18 +779,8 @@ export class ConfigService {
       projectRoot: validated.projectRoot,
       activeProfile: validated.activeProfile,
       profiles: updatedProfiles,
-      backend: {
-        workingDirectory: validated.backend.workingDirectory,
-        command: validated.backend.command,
-        args: validated.backend.args,
-        terminalName: validated.backend.terminalName ?? currentConfig.backend.terminalName ?? "DEM: Backend"
-      },
-      frontend: {
-        workingDirectory: validated.frontend.workingDirectory,
-        command: validated.frontend.command,
-        args: validated.frontend.args,
-        terminalName: validated.frontend.terminalName ?? currentConfig.frontend.terminalName ?? "DEM: Frontend"
-      },
+      backend: finalBackend,
+      frontend: finalFrontend,
       build: {
         workingDirectory: validated.build.workingDirectory,
         command: validated.build.command,
@@ -650,6 +878,134 @@ export class ConfigService {
       );
     }
     return str;
+  }
+
+  public async exportConfiguration(): Promise<string | undefined> {
+    if (!this.hasWorkspace()) {
+      vscode.window.showWarningMessage("Open a workspace folder first to export configuration.");
+      return undefined;
+    }
+
+    const currentConfig = this.readConfig();
+    const wsRoot = this.getWorkspaceRoot();
+    const defaultFileName = `${currentConfig.name || "dem"}-config.json`;
+    const defaultUri = vscode.Uri.file(path.join(wsRoot, defaultFileName));
+
+    const targetUri = await vscode.window.showSaveDialog({
+      defaultUri,
+      filters: {
+        "JSON Files": ["json"],
+        "All Files": ["*"]
+      },
+      title: "Export DEM Configuration",
+      saveLabel: "Export"
+    });
+
+    if (!targetUri) {
+      return undefined;
+    }
+
+    const configFile = this.getConfigFilePath();
+    let contentToExport: string;
+    if (fs.existsSync(configFile)) {
+      contentToExport = fs.readFileSync(configFile, "utf8");
+    } else {
+      contentToExport = JSON.stringify(currentConfig, null, 2) + "\n";
+    }
+
+    fs.writeFileSync(targetUri.fsPath, contentToExport, "utf8");
+    vscode.window.showInformationMessage(
+      `DEM configuration exported successfully to ${path.basename(targetUri.fsPath)}.`
+    );
+    return targetUri.fsPath;
+  }
+
+  public async importConfiguration(): Promise<boolean> {
+    if (!this.hasWorkspace()) {
+      vscode.window.showWarningMessage("Open a workspace folder first to import configuration.");
+      return false;
+    }
+
+    const targetUris = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectFolders: false,
+      canSelectMany: false,
+      filters: {
+        "JSON Files": ["json"],
+        "All Files": ["*"]
+      },
+      title: "Import DEM Configuration",
+      openLabel: "Import"
+    });
+
+    if (!targetUris || targetUris.length === 0) {
+      return false;
+    }
+
+    const sourceFile = targetUris[0].fsPath;
+    let rawContent: string;
+    try {
+      rawContent = fs.readFileSync(sourceFile, "utf8");
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to read file ${sourceFile}: ${(err as Error).message}`);
+      return false;
+    }
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(rawContent);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Expected a JSON object root.");
+      }
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Invalid JSON in ${path.basename(sourceFile)}: ${(err as Error).message}`
+      );
+      return false;
+    }
+
+    if (!parsed.profiles || typeof parsed.profiles !== "object" || Object.keys(parsed.profiles).length === 0) {
+      vscode.window.showErrorMessage(
+        `Import failed: ${path.basename(sourceFile)} is missing a valid "profiles" section.`
+      );
+      return false;
+    }
+
+    const confirmation = await vscode.window.showWarningMessage(
+      `Import configuration from "${path.basename(sourceFile)}"? This will overwrite your current workspace configuration (.vscode/project-build-manager.json).`,
+      { modal: true },
+      "Import & Overwrite",
+      "Cancel"
+    );
+
+    if (confirmation !== "Import & Overwrite") {
+      return false;
+    }
+
+    // Adapt projectRoot to current workspace if it belongs to another directory/machine
+    const wsRoot = this.getWorkspaceRoot();
+    if (typeof parsed.projectRoot === "string") {
+      const normalizedWs = path.normalize(wsRoot).toLowerCase();
+      const normalizedImported = path.normalize(parsed.projectRoot).toLowerCase();
+      if (normalizedWs !== normalizedImported && !fs.existsSync(parsed.projectRoot)) {
+        parsed.projectRoot = wsRoot;
+      }
+    } else {
+      parsed.projectRoot = wsRoot;
+    }
+
+    // Reset session profile so newly imported profile takes effect cleanly
+    this.sessionProfileId = undefined;
+
+    const destFile = this.getConfigFilePath();
+    fs.mkdirSync(path.dirname(destFile), { recursive: true });
+    fs.writeFileSync(destFile, JSON.stringify(parsed, null, 2) + "\n", "utf8");
+
+    this.onDidChangeEmitter.fire();
+    vscode.window.showInformationMessage(
+      `Successfully imported DEM configuration from ${path.basename(sourceFile)}.`
+    );
+    return true;
   }
 }
 

@@ -17,6 +17,7 @@ import { ConfigService } from "./ConfigService";
 import { makeEnvironment, quoteWindowsCmdToken, resolveCommand } from "./EnvironmentService";
 import { getNodeVersionFromProfile, isUsingNvm, runNvmUse } from "./NvmService";
 import { LogService, stripAnsi } from "./LogService";
+import { buildJdwpArgument, DebugManager, writeGradleDebugInitScript } from "./DebugManager";
 
 const execFileAsync = promisify(execFile);
 
@@ -139,11 +140,14 @@ export class ProcessManager implements vscode.Disposable {
   private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
   public readonly onDidChange = this.onDidChangeEmitter.event;
   private readonly disposables: vscode.Disposable[] = [];
+  private debugManager?: DebugManager;
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly logService: LogService
+    private readonly logService: LogService,
+    debugManager?: DebugManager
   ) {
+    this.debugManager = debugManager;
     for (const target of ["backend", "frontend"] as const) {
       this.records.set(target, {
         status: "stopped",
@@ -171,6 +175,10 @@ export class ProcessManager implements vscode.Disposable {
         }
       })
     );
+  }
+
+  public setDebugManager(debugManager: DebugManager): void {
+    this.debugManager = debugManager;
   }
 
   public getProcessState(target: ProcessTargetName, config?: ProjectConfig): ProcessState {
@@ -213,15 +221,24 @@ export class ProcessManager implements vscode.Disposable {
       rec.activeProfileLabel ??
       (cfg?.profiles[activeProfileId]?.label ?? defaultProfileLabel);
 
+    const effectiveCommand =
+      target === "backend"
+        ? (cfg?.profiles[activeProfileId]?.backendCommand ?? targetCfg.command)
+        : (cfg?.profiles[activeProfileId]?.frontendCommand ?? targetCfg.command);
+    const effectiveArgs =
+      target === "backend"
+        ? (cfg?.profiles[activeProfileId]?.backendArgs ?? targetCfg.args ?? [])
+        : (cfg?.profiles[activeProfileId]?.frontendArgs ?? targetCfg.args ?? []);
+
     return {
       target,
       name: target === "backend" ? "Backend" : "Frontend",
       status: rec.status,
       workingDirectory: targetCfg.workingDirectory,
       resolvedWorkingDirectory: resolvedDir,
-      command: targetCfg.command,
-      args: targetCfg.args ?? [],
-      formattedCommand: formatCommandLine(targetCfg.command, targetCfg.args ?? []),
+      command: effectiveCommand,
+      args: effectiveArgs,
+      formattedCommand: formatCommandLine(effectiveCommand, effectiveArgs),
       activeProfileId,
       activeProfileLabel,
       pid: rec.child?.pid,
@@ -307,7 +324,7 @@ export class ProcessManager implements vscode.Disposable {
 
   public async startTarget(
     targetName: ProcessTargetName,
-    options: { promptIfRunning?: boolean; showTerminal?: boolean } = {}
+    options: { promptIfRunning?: boolean; showTerminal?: boolean; isDebug?: boolean } = {}
   ): Promise<boolean> {
     const rec = this.records.get(targetName)!;
     if (rec.status === "running" || rec.status === "starting") {
@@ -352,18 +369,105 @@ export class ProcessManager implements vscode.Disposable {
       throw new Error(errMsg);
     }
 
-    this.validateSafeExecution(targetCfg.command, targetCfg.args ?? []);
+    // Pre-flight check for backend debug port
+    if (options.isDebug && targetName === "backend") {
+      const backendCfg = config.backend;
+      const debugPort = backendCfg.debugPort ?? 5005;
+      if (this.debugManager) {
+        const preflight = await this.debugManager.handleDebugPortPreflight(debugPort);
+        if (preflight !== "ok") {
+          this.logService.appendLine(
+            "backend",
+            "system",
+            `[DEM Debug] Debug launch cancelled due to port ${debugPort} conflict.`
+          );
+          return false;
+        }
+      }
+    }
 
-    const resolved = resolveCommand(targetCfg.command, profile);
+    const effectiveCommand =
+      targetName === "backend"
+        ? (profile.backendCommand ?? targetCfg.command)
+        : (profile.frontendCommand ?? targetCfg.command);
+    const effectiveArgs = [
+      ...(targetName === "backend"
+        ? (profile.backendArgs ?? targetCfg.args ?? [])
+        : (profile.frontendArgs ?? targetCfg.args ?? []))
+    ];
+    const env = makeEnvironment(profile);
+
+    // Apply Debug options for Backend
+    if (options.isDebug && targetName === "backend") {
+      const backendCfg = config.backend;
+      const debugPort = backendCfg.debugPort ?? 5005;
+      const jvmSuspend = Boolean(backendCfg.jvmSuspend);
+      const jdwpMode = backendCfg.jdwpMode ?? "javaToolOptions";
+      const isGradle = effectiveCommand.toLowerCase().includes("gradle");
+
+      if (isGradle) {
+        // IMPORTANT: Never pass JAVA_TOOL_OPTIONS for Gradle!
+        // Gradle CLI runs Java, which forks a Gradle daemon Java process, which runs a bootRun Java process.
+        // If JAVA_TOOL_OPTIONS is set in process.env, the Gradle CLI binds to debugPort first,
+        // causing the daemon to fail with "ERROR: transport error 202: bind failed: Address already in use".
+        delete env.JAVA_TOOL_OPTIONS;
+
+        if (jdwpMode === "gradleDebugJvm") {
+          if (!effectiveArgs.includes("--debug-jvm")) {
+            effectiveArgs.push("--debug-jvm");
+          }
+        } else if (jdwpMode === "customArgs" && backendCfg.customDebugArgs?.length) {
+          effectiveArgs.push(...backendCfg.customDebugArgs);
+        } else {
+          // Default mode: Generate a Gradle init script that targets ONLY the JavaExec (bootRun / run) task
+          const initScriptPath = writeGradleDebugInitScript(
+            profile,
+            profileId,
+            debugPort,
+            jvmSuspend,
+            backendCfg.springProfile
+          );
+          if (!effectiveArgs.includes("-I") && !effectiveArgs.includes("--init-script")) {
+            effectiveArgs.unshift("-I", initScriptPath);
+          }
+        }
+      } else {
+        // Non-Gradle backend (e.g. java -jar or direct script)
+        if (jdwpMode === "customArgs" && backendCfg.customDebugArgs?.length) {
+          effectiveArgs.push(...backendCfg.customDebugArgs);
+        } else {
+          const jdwpStr = buildJdwpArgument(profile, profileId, debugPort, jvmSuspend);
+          env.JAVA_TOOL_OPTIONS = env.JAVA_TOOL_OPTIONS
+            ? `${env.JAVA_TOOL_OPTIONS} ${jdwpStr}`
+            : jdwpStr;
+        }
+      }
+
+      if (backendCfg.springProfile && backendCfg.springProfile.trim()) {
+        const prof = backendCfg.springProfile.trim();
+        env.SPRING_PROFILES_ACTIVE = prof;
+        if (!isGradle && !effectiveArgs.some(a => a.startsWith("-Dspring.profiles.active="))) {
+          effectiveArgs.push(`-Dspring.profiles.active=${prof}`);
+        }
+      }
+
+      this.debugManager?.resetMilestones();
+      this.debugManager?.setBackendDebugActive(true);
+    } else if (options.isDebug && targetName === "frontend") {
+      this.debugManager?.setFrontendDebugActive(true);
+    }
+
+    this.validateSafeExecution(effectiveCommand, effectiveArgs);
+
+    const resolved = resolveCommand(effectiveCommand, profile);
     const resolvedExecutable = this.resolveTargetExecutableInCwd(
       resolved.executable,
-      targetCfg.command,
+      effectiveCommand,
       cwd,
       profile
     );
 
-    const env = makeEnvironment(profile);
-    const formattedCmd = formatCommandLine(resolvedExecutable, targetCfg.args ?? []);
+    const formattedCmd = formatCommandLine(resolvedExecutable, effectiveArgs);
     const startTime = new Date().toLocaleTimeString();
 
     rec.status = "starting";
@@ -395,13 +499,14 @@ export class ProcessManager implements vscode.Disposable {
       }
     }
 
-    const headerLine = `=== [${targetName.toUpperCase()}] Starting (${startTime}) | Profile: ${profileId} | CWD: ${cwd} ===`;
+    const modeTag = options.isDebug ? " [DEBUG MODE]" : "";
+    const headerLine = `=== [${targetName.toUpperCase()}${modeTag}] Starting (${startTime}) | Profile: ${profileId} | CWD: ${cwd} ===`;
     rec.pty.writeLine(`\r\n\x1b[36m${headerLine}\x1b[0m`);
     rec.pty.writeLine(`\x1b[90m$ ${formattedCmd}\x1b[0m`);
     this.logService.appendLine(
       targetName,
       "system",
-      `Starting ${targetName} (Profile: ${profileId}) in ${cwd}: ${formattedCmd}`
+      `Starting ${targetName}${modeTag} (Profile: ${profileId}) in ${cwd}: ${formattedCmd}`
     );
 
     if (options.showTerminal) {
@@ -409,13 +514,13 @@ export class ProcessManager implements vscode.Disposable {
     }
 
     try {
-      const child = this.spawnManagedChild(resolvedExecutable, targetCfg.args ?? [], cwd, env);
+      const child = this.spawnManagedChild(resolvedExecutable, effectiveArgs, cwd, env);
       rec.child = child;
 
       child.on("spawn", () => {
         if (rec.status === "starting") {
           rec.status = "running";
-          rec.latestSummary = `Running (PID ${child.pid ?? "active"}) — ${formatCommandLine(targetCfg.command, targetCfg.args ?? [])}`;
+          rec.latestSummary = `Running (PID ${child.pid ?? "active"}) — ${formatCommandLine(targetCfg.command, effectiveArgs)}`;
           this.onDidChangeEmitter.fire();
         }
       });
@@ -423,6 +528,9 @@ export class ProcessManager implements vscode.Disposable {
       child.stdout?.on("data", (chunk: Buffer) => {
         const text = chunk.toString("utf8");
         rec.pty.writeRaw(text);
+        if (targetName === "backend") {
+          this.debugManager?.handleLogChunk("stdout", text);
+        }
         const entries = this.logService.appendChunk(targetName, "stdout", text);
         if (entries.length > 0) {
           const lastNonEmpty = [...entries].reverse().find(e => e.text.trim().length > 0);
@@ -436,6 +544,9 @@ export class ProcessManager implements vscode.Disposable {
       child.stderr?.on("data", (chunk: Buffer) => {
         const text = chunk.toString("utf8");
         rec.pty.writeRaw(text);
+        if (targetName === "backend") {
+          this.debugManager?.handleLogChunk("stderr", text);
+        }
         const entries = this.logService.appendChunk(targetName, "stderr", text);
         if (entries.length > 0) {
           const lastNonEmpty = [...entries].reverse().find(e => e.text.trim().length > 0);
@@ -454,6 +565,11 @@ export class ProcessManager implements vscode.Disposable {
         rec.latestSummary = `Failed to start: ${errMsg}`;
         rec.pty.writeLine(`\x1b[31m[ERROR] ${errMsg}\x1b[0m`);
         this.logService.appendLine(targetName, "stderr", `Process error: ${errMsg}`);
+        if (targetName === "backend") {
+          this.debugManager?.setBackendDebugActive(false);
+        } else if (targetName === "frontend") {
+          this.debugManager?.setFrontendDebugActive(false);
+        }
         this.onDidChangeEmitter.fire();
       });
 
@@ -463,6 +579,12 @@ export class ProcessManager implements vscode.Disposable {
         rec.stopRequested = false;
         rec.exitCode = code;
         rec.lastExitTime = new Date().toLocaleTimeString();
+
+        if (targetName === "backend") {
+          this.debugManager?.setBackendDebugActive(false);
+        } else if (targetName === "frontend") {
+          this.debugManager?.setFrontendDebugActive(false);
+        }
 
         if (wasStoppedByUser) {
           rec.status = "stopped";
@@ -540,12 +662,15 @@ export class ProcessManager implements vscode.Disposable {
     return true;
   }
 
-  public async restartTarget(targetName: ProcessTargetName): Promise<void> {
+  public async restartTarget(
+    targetName: ProcessTargetName,
+    options: { isDebug?: boolean } = {}
+  ): Promise<void> {
     const rec = this.records.get(targetName)!;
     if (rec.child && (rec.status === "running" || rec.status === "starting")) {
       await this.stopTarget(targetName);
     }
-    await this.startTarget(targetName);
+    await this.startTarget(targetName, { isDebug: options.isDebug });
   }
 
   public async runAll(): Promise<void> {
@@ -556,7 +681,34 @@ export class ProcessManager implements vscode.Disposable {
         continue;
       }
       try {
-        await this.startTarget(target);
+        await this.startTarget(target, { isDebug: false });
+      } catch (err) {
+        errors.push(`${target}: ${(err as Error).message}`);
+      }
+    }
+    if (errors.length > 0) {
+      throw new Error(errors.join(" | "));
+    }
+  }
+
+  public async debugBackend(): Promise<boolean> {
+    return this.startTarget("backend", { promptIfRunning: true, isDebug: true });
+  }
+
+  public async debugFrontend(): Promise<boolean> {
+    return this.startTarget("frontend", { promptIfRunning: true, isDebug: true });
+  }
+
+  public async debugAll(): Promise<void> {
+    const errors: string[] = [];
+    for (const target of ["backend", "frontend"] as const) {
+      const rec = this.records.get(target)!;
+      try {
+        if (rec.status === "running" || rec.status === "starting") {
+          await this.restartTarget(target, { isDebug: true });
+        } else {
+          await this.startTarget(target, { isDebug: true });
+        }
       } catch (err) {
         errors.push(`${target}: ${(err as Error).message}`);
       }
