@@ -21,6 +21,7 @@ export type ConfigurationUpdatePayload = {
     nodeVersion?: string;
     backendCommand?: string;
     backendArgs?: string[];
+    env?: Record<string, string>;
   };
   backend: {
     workingDirectory: string;

@@ -31,6 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(outputChannel);
 
   const configService = new ConfigService();
+  configService.setGlobalState(context.globalState);
   const logService = new LogService(outputChannel);
   const environmentService = new EnvironmentService(configService, logService);
   debugManager = new DebugManager(configService, logService);
@@ -78,6 +79,18 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   } catch {
     // Ignore if no workspace is open
+  }
+
+  // Task 2: Auto-detect Java version from application-dev.yml / application-dev.properties and apply profile
+  try {
+    const detected = configService.applyDetectedProfile();
+    if (detected) {
+      outputChannel.appendLine(
+        `[DEM] Detected project Java ${detected.major} from ${detected.source} -> applied profile "${detected.profileId}"`
+      );
+    }
+  } catch {
+    // Ignore detection errors
   }
 
   // Register Commands

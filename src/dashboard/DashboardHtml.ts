@@ -153,6 +153,10 @@ export function buildDashboardHtml(
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
               Check Environment
             </button>
+            <button id="btn-set-env" class="btn btn-secondary" title="Set custom environment variables for this profile">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+              Set Environment Variables
+            </button>
           </div>
           <button id="btn-edit-config" class="btn btn-secondary" title="Edit profile paths and project commands in the Configuration Panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -334,169 +338,7 @@ export function buildDashboardHtml(
         </section>
       </div>
 
-      <!-- DEBUG MANAGER SECTION (Spring Boot JDWP & Angular Browser) -->
-      <section class="card" aria-labelledby="section-debug-title">
-        <div class="card-header">
-          <div class="card-title-group">
-            <h2 id="section-debug-title" class="card-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
-              </svg>
-              Debug Manager (Spring Boot &amp; Angular)
-            </h2>
-          </div>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <button id="btn-sync-launch-json" class="btn btn-secondary btn-sm" title="Generate/Update .vscode/launch.json with DEM configurations">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              Sync launch.json
-            </button>
-            <button id="btn-debug-all-sec" class="btn btn-primary btn-sm" title="Start Backend (JDWP) and Frontend processes in debug mode">
-              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-              Debug All
-            </button>
-          </div>
-        </div>
-
-        <div class="debug-cards-grid">
-          <!-- Java Spring Boot JDWP Card -->
-          <div class="debug-target-box">
-            <div class="debug-target-header">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="debug-target-title">Spring Boot (JDWP)</span>
-                <span id="badge-backend-debug" class="badge badge-stopped">
-                  <span class="badge-dot"></span>
-                  <span id="badge-backend-debug-text">Debug Inactive</span>
-                </span>
-              </div>
-              <span id="badge-backend-attached" class="badge badge-idle">
-                <span id="badge-backend-attached-text">Debugger Detached</span>
-              </span>
-            </div>
-
-            <div class="debug-meta-grid">
-              <div><span class="meta-label">JDWP Port:</span> <span id="debug-meta-jdwp-port" class="meta-value">5005</span></div>
-              <div><span class="meta-label">Server Port:</span> <span id="debug-meta-server-port" class="meta-value">8080</span></div>
-              <div><span class="meta-label">Spring Profile:</span> <span id="debug-meta-spring-profile" class="meta-value">dev</span></div>
-              <div><span class="meta-label">JDWP Mode:</span> <span id="debug-meta-jdwp-mode" class="meta-value">javaToolOptions</span></div>
-            </div>
-
-            <!-- Startup Milestones -->
-            <div class="milestones-container">
-              <div class="milestones-label">Startup Milestones:</div>
-              <div class="milestones-pills">
-                <span id="milestone-jdwp" class="milestone-pill milestone-pending">
-                  <span class="milestone-icon">○</span>
-                  <span id="milestone-jdwp-text">JDWP Listening (:5005)</span>
-                </span>
-                <span id="milestone-server" class="milestone-pill milestone-pending">
-                  <span class="milestone-icon">○</span>
-                  <span id="milestone-server-text">Tomcat/Netty (:8080)</span>
-                </span>
-                <span id="milestone-ready" class="milestone-pill milestone-pending">
-                  <span class="milestone-icon">○</span>
-                  <span id="milestone-ready-text">Spring Boot Ready</span>
-                </span>
-              </div>
-            </div>
-
-            <div class="debug-actions-row">
-              <button id="btn-dbg-start-backend" class="btn btn-primary btn-sm" title="Start Backend in JDWP debug mode">
-                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                Debug Backend
-              </button>
-              <button id="btn-dbg-attach-backend" class="btn btn-secondary btn-sm" title="Attach VS Code Java debugger to Spring Boot JDWP port">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                Attach Debugger
-              </button>
-              <button id="btn-dbg-open-backend-url" class="btn btn-secondary btn-sm" title="Open Spring Boot HTTP endpoint in external browser">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                Open :8080
-              </button>
-            </div>
-          </div>
-
-          <!-- Angular Browser Debugger Card -->
-          <div class="debug-target-box">
-            <div class="debug-target-header">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="debug-target-title">Frontend Browser (Angular)</span>
-                <span id="badge-frontend-debug" class="badge badge-stopped">
-                  <span class="badge-dot"></span>
-                  <span id="badge-frontend-debug-text">Debug Inactive</span>
-                </span>
-              </div>
-              <span id="badge-frontend-attached" class="badge badge-idle">
-                <span id="badge-frontend-attached-text">Browser Detached</span>
-              </span>
-            </div>
-
-            <div class="debug-meta-grid">
-              <div><span class="meta-label">Dev Server URL:</span> <span id="debug-meta-frontend-url" class="meta-value">http://localhost:4200</span></div>
-              <div><span class="meta-label">Browser:</span> <span id="debug-meta-browser-type" class="meta-value">Chrome (pwa-chrome)</span></div>
-            </div>
-
-            <div class="milestones-container" style="min-height: 48px; display: flex; align-items: center;">
-              <span class="form-hint">Supports sourcemap breakpoints in TypeScript / Angular components.</span>
-            </div>
-
-            <div class="debug-actions-row">
-              <button id="btn-dbg-start-frontend" class="btn btn-primary btn-sm" title="Start Frontend in debug mode and attach browser">
-                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                Debug Frontend
-              </button>
-              <button id="btn-dbg-attach-frontend" class="btn btn-secondary btn-sm" title="Attach Chrome/Edge browser debugger to Angular dev server">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                Attach Browser
-              </button>
-              <button id="btn-dbg-open-frontend-url" class="btn btn-secondary btn-sm" title="Open Angular app in browser">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                Open App
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Breakpoints Explorer Sub-Card -->
-        <div class="breakpoints-card">
-          <div class="breakpoints-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="breakpoints-title">Workspace Breakpoints</span>
-              <span id="breakpoints-count-badge" class="badge badge-idle">0</span>
-            </div>
-            <button id="btn-clear-breakpoints" class="btn btn-secondary btn-sm" title="Remove all breakpoints from workspace">
-              Clear All
-            </button>
-          </div>
-          <div id="breakpoints-table-container" class="breakpoints-table-container">
-            <div class="breakpoints-empty-msg">No breakpoints set. Click in editor gutters to place breakpoints and manage them here.</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- E. ENVIRONMENT DIAGNOSTICS -->
-      <section class="card" aria-labelledby="section-diagnostics-title">
-        <div class="card-header">
-          <div>
-            <h2 id="section-diagnostics-title" class="card-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-              </svg>
-              Environment Diagnostics
-            </h2>
-            <p id="diag-subtitle" class="form-hint" style="margin: 2px 0 0 0;">
-              Validate java, gradle, node, and npm using active profile
-            </p>
-          </div>
-          <button id="btn-check-again" class="btn btn-secondary btn-sm" title="Execute java -version, gradle -version, node -v, and npm -v">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-            <span id="btn-check-again-text">Check Again</span>
-          </button>
-        </div>
-
-        <div id="diagnostics-grid" class="diagnostics-grid"></div>
-      </section>
-
-      <!-- F. LIVE LOGS -->
+      <!-- E. LIVE LOGS -->
       <section class="card" aria-labelledby="section-logs-title">
         <div class="logs-toolbar">
           <div class="card-title-group">
@@ -534,6 +376,29 @@ export function buildDashboardHtml(
             No process output captured yet. Start Backend, Frontend, or Build Project to view live stdout/stderr streams here.
           </div>
         </div>
+      </section>
+
+      <!-- F. ENVIRONMENT DIAGNOSTICS -->
+      <section class="card" aria-labelledby="section-diagnostics-title">
+        <div class="card-header">
+          <div>
+            <h2 id="section-diagnostics-title" class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+              </svg>
+              Environment Diagnostics
+            </h2>
+            <p id="diag-subtitle" class="form-hint" style="margin: 2px 0 0 0;">
+              Validate java, gradle, node, and npm using active profile
+            </p>
+          </div>
+          <button id="btn-check-again" class="btn btn-secondary btn-sm" title="Execute java -version, gradle -version, node -v, and npm -v">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            <span id="btn-check-again-text">Check Again</span>
+          </button>
+        </div>
+
+        <div id="diagnostics-grid" class="diagnostics-grid"></div>
       </section>
 
       <!-- G. CONFIGURATION PANEL -->
@@ -595,6 +460,11 @@ export function buildDashboardHtml(
               <div class="form-field">
                 <label for="cfg-node-home">Node.js Version / Path (NVM or Folder)</label>
                 <input id="cfg-node-home" type="text" class="text-input" placeholder="nvm use 20.14.0 or path" />
+              </div>
+              <div class="form-field">
+                <label for="cfg-profile-env">Custom Environment Variables (KEY=VALUE, one per line)</label>
+                <textarea id="cfg-profile-env" class="text-input" rows="3" style="font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; resize: vertical;" placeholder="MY_VAR=value&#10;SPRING_PROFILES_ACTIVE=dev"></textarea>
+                <span class="form-hint" style="margin-top: 3px; display: block;">Applied to Backend, Frontend, and Build processes for this profile.</span>
               </div>
             </div>
 

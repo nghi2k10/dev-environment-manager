@@ -57,6 +57,17 @@ export function makeEnvironment(profile: Profile): Record<string, string> {
   env.PATH = [...additions, existingPath].filter(Boolean).join(path.delimiter);
   env[pathKey] = env.PATH;
 
+  if (profile.env && typeof profile.env === "object") {
+    for (const [k, v] of Object.entries(profile.env)) {
+      if (typeof v === "string") {
+        env[k] = v;
+        if (k.toUpperCase() === "PATH") {
+          env[pathKey] = v;
+        }
+      }
+    }
+  }
+
   return Object.fromEntries(
     Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === "string")
   );

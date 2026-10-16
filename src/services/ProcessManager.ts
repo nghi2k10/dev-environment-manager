@@ -18,6 +18,7 @@ import { makeEnvironment, quoteWindowsCmdToken, resolveCommand } from "./Environ
 import { getNodeVersionFromProfile, isUsingNvm, runNvmUse } from "./NvmService";
 import { LogService, stripAnsi } from "./LogService";
 import { buildJdwpArgument, DebugManager, writeGradleDebugInitScript } from "./DebugManager";
+import { commentOutFrontendGradleTasks } from "./ProjectScanService";
 
 const execFileAsync = promisify(execFile);
 
@@ -367,6 +368,27 @@ export class ProcessManager implements vscode.Disposable {
       this.logService.appendLine(targetName, "stderr", errMsg);
       this.onDidChangeEmitter.fire();
       throw new Error(errMsg);
+    }
+
+    // Task 4: Before running backend, comment out frontend gradle tasks in build.gradle
+    if (targetName === "backend") {
+      try {
+        const rootDir = this.configService.resolveProjectRoot(config);
+        const modifiedFiles = commentOutFrontendGradleTasks(rootDir);
+        for (const mf of modifiedFiles) {
+          this.logService.appendLine(
+            "backend",
+            "system",
+            `[DEM] Commented out frontend tasks in ${path.relative(rootDir, mf) || path.basename(mf)}`
+          );
+        }
+      } catch (err) {
+        this.logService.appendLine(
+          "backend",
+          "stderr",
+          `[DEM] Warning: failed to auto-patch build.gradle: ${(err as Error).message}`
+        );
+      }
     }
 
     // Pre-flight check for backend debug port

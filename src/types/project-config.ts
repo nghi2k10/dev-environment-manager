@@ -8,6 +8,7 @@ export type Profile = {
   backendArgs?: string[];
   frontendCommand?: string;
   frontendArgs?: string[];
+  env?: Record<string, string>;
 };
 
 export type BackendTarget = {
@@ -143,6 +144,7 @@ export type ProfileDetailsView = {
   nodeHomeExists: boolean;
   backendCommand?: string;
   backendArgs?: string[];
+  env?: Record<string, string>;
 };
 
 export type SpringBootMilestones = {

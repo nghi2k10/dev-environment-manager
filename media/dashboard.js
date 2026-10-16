@@ -35,6 +35,7 @@
     profileSelect: document.getElementById("profile-select"),
     btnSelectProfile: document.getElementById("btn-select-profile"),
     btnCheckEnv: document.getElementById("btn-check-env"),
+    btnSetEnv: document.getElementById("btn-set-env"),
     btnEditConfig: document.getElementById("btn-edit-config"),
     profJavaVersion: document.getElementById("prof-java-version"),
     profJavaPath: document.getElementById("prof-java-path"),
@@ -149,6 +150,7 @@
     cfgJavaHome: document.getElementById("cfg-java-home"),
     cfgGradleHome: document.getElementById("cfg-gradle-home"),
     cfgNodeHome: document.getElementById("cfg-node-home"),
+    cfgProfileEnv: document.getElementById("cfg-profile-env"),
     cfgBackendProfileTag: document.getElementById("cfg-backend-profile-tag"),
     cfgBackendCwd: document.getElementById("cfg-backend-cwd"),
     cfgBackendCmd: document.getElementById("cfg-backend-cmd"),
@@ -774,6 +776,14 @@
       } else {
         els.cfgBackendArgsHint.textContent = `Dùng lệnh mặc định dự án cho [${profileId}]: gradle ${profArgs || "root:bootRun"}`;
       }
+    if (els.cfgProfileEnv) {
+      if (prof.env && typeof prof.env === "object") {
+        els.cfgProfileEnv.value = Object.entries(prof.env)
+          .map(([k, v]) => `${k}=${v}`)
+          .join("\n");
+      } else {
+        els.cfgProfileEnv.value = "";
+      }
     }
   }
 
@@ -811,6 +821,19 @@
       nodeHome = undefined;
     }
 
+    const envLines = (els.cfgProfileEnv?.value || "").split(/\r?\n/);
+    const parsedEnv = {};
+    for (const line of envLines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx > 0) {
+        const k = trimmed.slice(0, eqIdx).trim();
+        const v = trimmed.slice(eqIdx + 1).trim();
+        if (k) parsedEnv[k] = v;
+      }
+    }
+
     const payload = {
       name: els.cfgProjectName.value.trim(),
       projectRoot: els.cfgProjectRoot.value.trim(),
@@ -822,7 +845,8 @@
         gradleHome: els.cfgGradleHome.value.trim(),
         nodeHome: nodeHome,
         nodeVersion: nodeVersion,
-        backendArgs: els.cfgBackendArgs?.value.trim() ? splitArgs(els.cfgBackendArgs.value) : undefined
+        backendArgs: els.cfgBackendArgs?.value.trim() ? splitArgs(els.cfgBackendArgs.value) : undefined,
+        env: Object.keys(parsedEnv).length > 0 ? parsedEnv : undefined
       },
       backend: {
         workingDirectory: els.cfgBackendCwd.value.trim(),
@@ -966,6 +990,17 @@
     postCommand({ type: "checkEnvironment" });
   });
 
+  els.btnSetEnv?.addEventListener("click", () => {
+    toggleConfigPanel(true);
+    if (els.cfgEditProfileId && els.profileSelect.value) {
+      els.cfgEditProfileId.value = els.profileSelect.value;
+      editingProfileId = els.profileSelect.value;
+      loadSelectedProfileIntoConfigInputs(els.profileSelect.value);
+    }
+    els.cfgProfileEnv?.focus();
+    els.cfgProfileEnv?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
   els.btnEditConfig?.addEventListener("click", () => {
     toggleConfigPanel(true);
     if (els.cfgEditProfileId && els.profileSelect.value) {
@@ -1103,6 +1138,7 @@
     els.cfgJavaHome,
     els.cfgGradleHome,
     els.cfgNodeHome,
+    els.cfgProfileEnv,
     els.cfgBackendCwd,
     els.cfgBackendCmd,
     els.cfgBackendArgs,

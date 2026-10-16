@@ -7,25 +7,29 @@
       "label": "Java 8 / Gradle 3.5.1 / Node.js 10.24.1",
       "javaHome": "E:\\soft\\jdk8",
       "gradleHome": "E:\\soft\\gradle-3.5.1",
-      "nodeVersion": "10.24.1"
+      "nodeVersion": "10.24.1",
+      "backendArgs": ["run"]
     },
     "java11-node14": {
       "label": "Java 11 / Gradle 6.9.1 / Node.js 14.20.0",
       "javaHome": "E:\\soft\\jdk11",
       "gradleHome": "E:\\soft\\gradle-6.9.1",
-      "nodeVersion": "14.20.0"
+      "nodeVersion": "14.20.0",
+      "backendArgs": ["root:bootRun"]
     },
     "java17-node20": {
       "label": "Java 17 / Gradle 8.8 / Node.js 20.14.0",
       "javaHome": "E:\\soft\\jdk17",
       "gradleHome": "E:\\soft\\gradle-8.8",
-      "nodeVersion": "20.14.0"
+      "nodeVersion": "20.14.0",
+      "backendArgs": ["root:bootRun"]
     },
     "java21-node20": {
       "label": "Java 21 / Gradle 8.8 / Node.js 20.14.0",
       "javaHome": "E:\\soft\\jdk21",
       "gradleHome": "E:\\soft\\gradle-8.8",
-      "nodeVersion": "20.14.0"
+      "nodeVersion": "20.14.0",
+      "backendArgs": ["root:bootRun"]
     }
   },
   "backend": {

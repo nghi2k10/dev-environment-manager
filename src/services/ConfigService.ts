@@ -16,8 +16,11 @@ import {
   isUsingNvm,
   runNvmUse
 } from "./NvmService";
+import { detectProjectJavaVersion } from "./ProjectScanService";
 
 export const CONFIG_DEFAULT = ".vscode/project-build-manager.json";
+
+const TEMPLATE_STATE_KEY = "dem.machineConfigTemplate.v1";
 
 const DEFAULT_BUILD_TARGET: BuildTarget = {
   workingDirectory: ".",
@@ -74,6 +77,81 @@ export class ConfigService {
   private sessionProfileId: string | undefined;
   private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
   public readonly onDidChange = this.onDidChangeEmitter.event;
+  private globalState: vscode.Memento | undefined;
+  private lastRememberedTemplate = "";
+
+  public setGlobalState(state: vscode.Memento): void {
+    this.globalState = state;
+  }
+
+  private loadTemplate(): Record<string, unknown> | undefined {
+    const tpl = this.globalState?.get<Record<string, unknown>>(TEMPLATE_STATE_KEY);
+    if (
+      !tpl ||
+      typeof tpl !== "object" ||
+      !tpl.profiles ||
+      typeof tpl.profiles !== "object" ||
+      Object.keys(tpl.profiles).length === 0 ||
+      !tpl.backend ||
+      !tpl.frontend
+    ) {
+      return undefined;
+    }
+    return JSON.parse(JSON.stringify(tpl)) as Record<string, unknown>;
+  }
+
+  public rememberTemplate(raw: Record<string, unknown>): void {
+    if (!this.globalState || !raw.profiles || !raw.backend || !raw.frontend) {
+      return;
+    }
+    const snapshot: Record<string, unknown> = {
+      activeProfile: raw.activeProfile,
+      profiles: raw.profiles,
+      backend: raw.backend,
+      frontend: raw.frontend,
+      build: raw.build
+    };
+    const serialized = JSON.stringify(snapshot);
+    if (serialized === this.lastRememberedTemplate) {
+      return;
+    }
+    this.lastRememberedTemplate = serialized;
+    void this.globalState.update(TEMPLATE_STATE_KEY, JSON.parse(serialized));
+  }
+
+  private getProfileJavaMajor(id: string, profile: Profile): number | undefined {
+    const fromLabel = (profile.label ?? "").match(/Java\s+(?:1\.)?(\d+)/i)?.[1];
+    const fromId = id.match(/java(?:1\.)?(\d+)/i)?.[1];
+    const fromPath = (profile.javaHome ?? "").match(/(?:jdk|java)[-_ ]?(?:1\.)?(\d+)/i)?.[1];
+    const raw = fromLabel ?? fromId ?? fromPath;
+    return raw ? parseInt(raw, 10) : undefined;
+  }
+
+  public findProfileIdForJavaMajor(
+    profiles: Record<string, Profile>,
+    major: number
+  ): string | undefined {
+    return Object.entries(profiles).find(([id, p]) => this.getProfileJavaMajor(id, p) === major)?.[0];
+  }
+
+  public applyDetectedProfile(): { major: number; profileId: string; source: string } | undefined {
+    if (!this.hasWorkspace()) {
+      return undefined;
+    }
+    const config = this.readConfig();
+    const detected = detectProjectJavaVersion(this.resolveProjectRoot(config));
+    if (!detected) {
+      return undefined;
+    }
+    const profileId = this.findProfileIdForJavaMajor(config.profiles, detected.major);
+    if (!profileId) {
+      return undefined;
+    }
+    if (this.getActiveProfile(config).id !== profileId) {
+      this.setSessionProfile(profileId);
+    }
+    return { major: detected.major, profileId, source: detected.source };
+  }
 
   public hasWorkspace(): boolean {
     return Boolean(vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0);
@@ -149,7 +227,7 @@ export class ConfigService {
           javaHome: "E:\\soft\\jdk11",
           gradleHome: "E:\\soft\\gradle-6.9.1",
           nodeVersion: "14.20.0",
-          backendArgs: ["run"]
+          backendArgs: ["root:bootRun"]
         },
         "java17-node20": {
           label: "Java 17 / Gradle 8.8 / Node.js 20.14.0",
@@ -194,8 +272,24 @@ export class ConfigService {
       }
     };
 
+    // Prefer template from machine storage if exists, while preserving current workspace name & root
+    const template = this.loadTemplate();
+    const finalConfig: Record<string, unknown> = template
+      ? { ...template, name: wsName, projectRoot: wsRoot }
+      : (defaultConfig as unknown as Record<string, unknown>);
+
+    // Detect Java version from application-dev.yml / application-dev.properties
+    const profiles = finalConfig.profiles as Record<string, Profile>;
+    const detected = detectProjectJavaVersion(wsRoot);
+    const byVersion = detected ? this.findProfileIdForJavaMajor(profiles, detected.major) : undefined;
+    const templateActive =
+      typeof finalConfig.activeProfile === "string" && profiles[finalConfig.activeProfile]
+        ? finalConfig.activeProfile
+        : Object.keys(profiles)[0];
+    finalConfig.activeProfile = byVersion ?? templateActive;
+
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(defaultConfig, null, 2) + "\n", "utf8");
+    fs.writeFileSync(file, JSON.stringify(finalConfig, null, 2) + "\n", "utf8");
     this.onDidChangeEmitter.fire();
     return { created: true, path: file };
   }
@@ -315,7 +409,15 @@ export class ConfigService {
             : undefined,
         frontendArgs: Array.isArray(rawProfile.frontendArgs)
           ? rawProfile.frontendArgs.map(String)
-          : undefined
+          : undefined,
+        env:
+          rawProfile.env && typeof rawProfile.env === "object" && !Array.isArray(rawProfile.env)
+            ? Object.fromEntries(
+                Object.entries(rawProfile.env as Record<string, unknown>)
+                  .filter(([k]) => k && k.trim().length > 0)
+                  .map(([k, v]) => [k.trim(), String(v ?? "")])
+              )
+            : undefined
       };
     }
 
@@ -394,6 +496,10 @@ export class ConfigService {
           terminalName: cfg.build.terminalName ?? "DEM: Build"
         }
       : { ...DEFAULT_BUILD_TARGET };
+
+    if (parsed && typeof parsed === "object") {
+      this.rememberTemplate(parsed as Record<string, unknown>);
+    }
 
     return {
       name: typeof cfg.name === "string" && cfg.name.trim() ? cfg.name.trim() : this.getWorkspaceName(),
@@ -479,7 +585,8 @@ export class ConfigService {
         gradleHomeExists: Boolean(gradleHome && fs.existsSync(gradleHome)),
         nodeHomeExists: useNvm ? true : Boolean(rawNodeHome && fs.existsSync(rawNodeHome)),
         backendCommand: profile.backendCommand,
-        backendArgs: profile.backendArgs
+        backendArgs: profile.backendArgs,
+        env: profile.env
       };
     });
   }
@@ -537,6 +644,21 @@ export class ConfigService {
     const backendArgs = Array.isArray(prof.backendArgs)
       ? prof.backendArgs.map(String)
       : undefined;
+
+    let env: Record<string, string> | undefined = undefined;
+    if (prof.env !== undefined) {
+      if (prof.env && typeof prof.env === "object" && !Array.isArray(prof.env)) {
+        env = {};
+        for (const [k, v] of Object.entries(prof.env as Record<string, unknown>)) {
+          const key = k.trim();
+          if (key.length > 0) {
+            env[key] = String(v ?? "");
+          }
+        }
+      } else {
+        env = undefined;
+      }
+    }
 
     const backendBase = this.validateTargetSection(obj.backend, "Backend", "DEM: Backend");
     const bRaw = obj.backend as Record<string, unknown>;
@@ -610,7 +732,8 @@ export class ConfigService {
         nodeHome,
         nodeVersion,
         backendCommand,
-        backendArgs
+        backendArgs,
+        env
       },
       backend,
       frontend,
@@ -679,6 +802,11 @@ export class ConfigService {
       newProf.backendArgs = validated.editedProfile.backendArgs;
     } else if (existingProf.backendArgs !== undefined) {
       newProf.backendArgs = existingProf.backendArgs;
+    }
+    if (validated.editedProfile.env !== undefined) {
+      newProf.env = validated.editedProfile.env;
+    } else if (existingProf.env !== undefined) {
+      newProf.env = existingProf.env;
     }
 
     const updatedProfiles: Record<string, Profile> = {
@@ -797,6 +925,7 @@ export class ConfigService {
 
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify(finalJson, null, 2) + "\n", "utf8");
+    this.rememberTemplate(finalJson);
 
     this.sessionProfileId = validated.activeProfile;
     this.onDidChangeEmitter.fire();
@@ -906,16 +1035,26 @@ export class ConfigService {
     }
 
     const configFile = this.getConfigFilePath();
-    let contentToExport: string;
+    let exportedData: Record<string, unknown>;
     if (fs.existsSync(configFile)) {
-      contentToExport = fs.readFileSync(configFile, "utf8");
+      try {
+        exportedData = JSON.parse(fs.readFileSync(configFile, "utf8")) as Record<string, unknown>;
+      } catch {
+        exportedData = JSON.parse(JSON.stringify(currentConfig)) as Record<string, unknown>;
+      }
     } else {
-      contentToExport = JSON.stringify(currentConfig, null, 2) + "\n";
+      exportedData = JSON.parse(JSON.stringify(currentConfig)) as Record<string, unknown>;
     }
 
+    // Task 3: Exclude Project General (name, projectRoot, activeProfile)
+    delete exportedData.name;
+    delete exportedData.projectRoot;
+    delete exportedData.activeProfile;
+
+    const contentToExport = JSON.stringify(exportedData, null, 2) + "\n";
     fs.writeFileSync(targetUri.fsPath, contentToExport, "utf8");
     vscode.window.showInformationMessage(
-      `DEM configuration exported successfully to ${path.basename(targetUri.fsPath)}.`
+      `DEM configuration exported successfully to ${path.basename(targetUri.fsPath)} (Project General excluded).`
     );
     return targetUri.fsPath;
   }
@@ -972,7 +1111,7 @@ export class ConfigService {
     }
 
     const confirmation = await vscode.window.showWarningMessage(
-      `Import configuration from "${path.basename(sourceFile)}"? This will overwrite your current workspace configuration (.vscode/project-build-manager.json).`,
+      `Import configuration from "${path.basename(sourceFile)}"? Profiles, backend, frontend, and build configs will be updated. Project General (name, projectRoot, activeProfile) will be preserved.`,
       { modal: true },
       "Import & Overwrite",
       "Cancel"
@@ -982,28 +1121,37 @@ export class ConfigService {
       return false;
     }
 
-    // Adapt projectRoot to current workspace if it belongs to another directory/machine
-    const wsRoot = this.getWorkspaceRoot();
-    if (typeof parsed.projectRoot === "string") {
-      const normalizedWs = path.normalize(wsRoot).toLowerCase();
-      const normalizedImported = path.normalize(parsed.projectRoot).toLowerCase();
-      if (normalizedWs !== normalizedImported && !fs.existsSync(parsed.projectRoot)) {
-        parsed.projectRoot = wsRoot;
+    const destFile = this.getConfigFilePath();
+    let existingRaw: Record<string, unknown> = {};
+    if (fs.existsSync(destFile)) {
+      try {
+        existingRaw = JSON.parse(fs.readFileSync(destFile, "utf8")) as Record<string, unknown>;
+      } catch {
+        existingRaw = {};
       }
-    } else {
-      parsed.projectRoot = wsRoot;
     }
+
+    // Task 3: Do NOT import Project General (preserve existing name, projectRoot, activeProfile)
+    const wsRoot = this.getWorkspaceRoot();
+    const wsName = this.getWorkspaceName();
+
+    const merged: Record<string, unknown> = {
+      ...parsed,
+      name: existingRaw.name ?? wsName,
+      projectRoot: existingRaw.projectRoot ?? wsRoot,
+      activeProfile: existingRaw.activeProfile ?? Object.keys(parsed.profiles)[0]
+    };
 
     // Reset session profile so newly imported profile takes effect cleanly
     this.sessionProfileId = undefined;
 
-    const destFile = this.getConfigFilePath();
     fs.mkdirSync(path.dirname(destFile), { recursive: true });
-    fs.writeFileSync(destFile, JSON.stringify(parsed, null, 2) + "\n", "utf8");
+    fs.writeFileSync(destFile, JSON.stringify(merged, null, 2) + "\n", "utf8");
+    this.rememberTemplate(merged);
 
     this.onDidChangeEmitter.fire();
     vscode.window.showInformationMessage(
-      `Successfully imported DEM configuration from ${path.basename(sourceFile)}.`
+      `Successfully imported DEM configuration from ${path.basename(sourceFile)} (Project General preserved).`
     );
     return true;
   }
