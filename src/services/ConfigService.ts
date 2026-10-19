@@ -73,6 +73,34 @@ export function extractProfileVersions(
   };
 }
 
+export function isJava8Profile(id: string, prof?: Partial<Profile>): boolean {
+  const combined = `${id} ${prof?.label ?? ""} ${prof?.javaHome ?? ""}`.toLowerCase();
+  return (
+    combined.includes("java8") ||
+    combined.includes("java 8") ||
+    combined.includes("java-8") ||
+    combined.includes("jdk8") ||
+    combined.includes("jdk-8") ||
+    combined.includes("1.8") ||
+    combined.includes("jdk1.8")
+  );
+}
+
+export function resolveEffectiveBackendArgs(id: string, prof?: Partial<Profile>): string[] {
+  const isJ8 = isJava8Profile(id, prof);
+  if (Array.isArray(prof?.backendArgs) && prof.backendArgs.length > 0) {
+    const joined = prof.backendArgs.join(" ");
+    if (isJ8 && (joined === "root:bootRun" || joined === "bootRun")) {
+      return ["run"];
+    }
+    if (!isJ8 && joined === "run") {
+      return ["root:bootRun"];
+    }
+    return prof.backendArgs.map(String);
+  }
+  return isJ8 ? ["run"] : ["root:bootRun"];
+}
+
 export class ConfigService {
   private sessionProfileId: string | undefined;
   private readonly onDidChangeEmitter = new vscode.EventEmitter<void>();
@@ -400,9 +428,7 @@ export class ConfigService {
           typeof rawProfile.backendCommand === "string" && rawProfile.backendCommand.trim()
             ? rawProfile.backendCommand.trim()
             : undefined,
-        backendArgs: Array.isArray(rawProfile.backendArgs)
-          ? rawProfile.backendArgs.map(String)
-          : undefined,
+        backendArgs: resolveEffectiveBackendArgs(id, rawProfile),
         frontendCommand:
           typeof rawProfile.frontendCommand === "string" && rawProfile.frontendCommand.trim()
             ? rawProfile.frontendCommand.trim()
@@ -799,9 +825,11 @@ export class ConfigService {
       newProf.backendCommand = existingProf.backendCommand;
     }
     if (validated.editedProfile.backendArgs !== undefined) {
-      newProf.backendArgs = validated.editedProfile.backendArgs;
+      newProf.backendArgs = resolveEffectiveBackendArgs(validated.editedProfileId, validated.editedProfile);
     } else if (existingProf.backendArgs !== undefined) {
-      newProf.backendArgs = existingProf.backendArgs;
+      newProf.backendArgs = resolveEffectiveBackendArgs(validated.editedProfileId, existingProf);
+    } else {
+      newProf.backendArgs = resolveEffectiveBackendArgs(validated.editedProfileId, newProf);
     }
     if (validated.editedProfile.env !== undefined) {
       newProf.env = validated.editedProfile.env;

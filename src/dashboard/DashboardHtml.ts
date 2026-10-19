@@ -16,6 +16,9 @@ export function buildDashboardHtml(
   const scriptUri = webview.asWebviewUri(
     vscode.Uri.joinPath(extensionUri, "media", "dashboard.js")
   );
+  const watermarkUri = webview.asWebviewUri(
+    vscode.Uri.joinPath(extensionUri, "media", "watermark-transparent.png")
+  );
 
   const csp = [
     "default-src 'none'",
@@ -37,6 +40,7 @@ export function buildDashboardHtml(
   <div class="dashboard-container">
     <!-- A. HEADER -->
     <header class="dashboard-header" role="banner">
+      <img class="header-watermark" src="${watermarkUri}" alt="" aria-hidden="true" />
       <div class="header-brand">
         <div class="brand-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -13,7 +13,7 @@ import {
   ProjectConfig,
   RunTarget
 } from "../types/project-config";
-import { ConfigService } from "./ConfigService";
+import { ConfigService, resolveEffectiveBackendArgs } from "./ConfigService";
 import { makeEnvironment, quoteWindowsCmdToken, resolveCommand } from "./EnvironmentService";
 import { getNodeVersionFromProfile, isUsingNvm, runNvmUse } from "./NvmService";
 import { LogService, stripAnsi } from "./LogService";
@@ -228,7 +228,7 @@ export class ProcessManager implements vscode.Disposable {
         : (cfg?.profiles[activeProfileId]?.frontendCommand ?? targetCfg.command);
     const effectiveArgs =
       target === "backend"
-        ? (cfg?.profiles[activeProfileId]?.backendArgs ?? targetCfg.args ?? [])
+        ? (cfg?.profiles[activeProfileId]?.backendArgs ?? resolveEffectiveBackendArgs(activeProfileId, cfg?.profiles[activeProfileId]))
         : (cfg?.profiles[activeProfileId]?.frontendArgs ?? targetCfg.args ?? []);
 
     return {
@@ -414,7 +414,7 @@ export class ProcessManager implements vscode.Disposable {
         : (profile.frontendCommand ?? targetCfg.command);
     const effectiveArgs = [
       ...(targetName === "backend"
-        ? (profile.backendArgs ?? targetCfg.args ?? [])
+        ? (profile.backendArgs ?? resolveEffectiveBackendArgs(profileId, profile))
         : (profile.frontendArgs ?? targetCfg.args ?? []))
     ];
     const env = makeEnvironment(profile);

@@ -2,7 +2,7 @@
   "name": "dev-environment-manager",
   "displayName": "Dev Environment Manager",
   "description": "Manage Java, Gradle and Node.js profiles and run backend/frontend projects.",
-  "version": "0.2.6",
+  "version": "0.2.9",
   "publisher": "local-dev-tools",
   "engines": {
     "vscode": "^1.85.0"

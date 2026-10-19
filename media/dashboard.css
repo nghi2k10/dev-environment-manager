@@ -63,6 +63,8 @@ body {
 
 /* Header */
 .dashboard-header {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -73,7 +75,28 @@ body {
   border-radius: var(--dem-radius);
 }
 
+.header-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 160%;
+  max-height: 115px;
+  opacity: 0.14;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  object-fit: contain;
+}
+
+body.vscode-light .header-watermark {
+  filter: invert(1);
+  opacity: 0.08;
+}
+
 .header-brand {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -126,6 +149,8 @@ body {
 }
 
 .header-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 6px;

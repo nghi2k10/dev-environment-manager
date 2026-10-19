@@ -756,6 +756,34 @@
     els.configFeedbackBanner?.classList.add("hidden");
   }
 
+  function isJava8Profile(profileId, prof) {
+    const combined = `${profileId || ""} ${prof?.label || ""} ${prof?.javaHome || ""}`.toLowerCase();
+    return (
+      combined.includes("java8") ||
+      combined.includes("java 8") ||
+      combined.includes("java-8") ||
+      combined.includes("jdk8") ||
+      combined.includes("jdk-8") ||
+      combined.includes("1.8") ||
+      combined.includes("jdk1.8")
+    );
+  }
+
+  function getEffectiveBackendArgsForProfile(profileId, prof) {
+    const isJ8 = isJava8Profile(profileId, prof);
+    if (prof && Array.isArray(prof.backendArgs) && prof.backendArgs.length > 0) {
+      const joined = prof.backendArgs.join(" ");
+      if (isJ8 && (joined === "root:bootRun" || joined === "bootRun")) {
+        return "run";
+      }
+      if (!isJ8 && joined === "run") {
+        return "root:bootRun";
+      }
+      return joined;
+    }
+    return isJ8 ? "run" : "root:bootRun";
+  }
+
   function loadSelectedProfileIntoConfigInputs(profileId) {
     if (!currentState || !currentState.rawConfig || !currentState.rawConfig.profiles) return;
     const prof = currentState.rawConfig.profiles[profileId];
@@ -763,7 +791,7 @@
     els.cfgJavaHome.value = prof.javaHome || "";
     els.cfgGradleHome.value = prof.gradleHome || "";
     els.cfgNodeHome.value = prof.nodeVersion ? `nvm use ${prof.nodeVersion}` : (prof.nodeHome || "");
-    const profArgs = prof.backendArgs ? prof.backendArgs.join(" ") : (currentState.rawConfig.backend?.args || []).join(" ");
+    const profArgs = getEffectiveBackendArgsForProfile(profileId, prof);
     if (els.cfgBackendArgs) {
       els.cfgBackendArgs.value = profArgs;
     }
@@ -771,11 +799,8 @@
       els.cfgBackendProfileTag.textContent = `cho profile [${profileId}]`;
     }
     if (els.cfgBackendArgsHint) {
-      if (prof.backendArgs && prof.backendArgs.length > 0) {
-        els.cfgBackendArgsHint.textContent = `⚡ Đang áp dụng lệnh riêng cho [${profileId}]: gradle ${profArgs}`;
-      } else {
-        els.cfgBackendArgsHint.textContent = `Dùng lệnh mặc định dự án cho [${profileId}]: gradle ${profArgs || "root:bootRun"}`;
-      }
+      els.cfgBackendArgsHint.textContent = `⚡ Tự động áp dụng lệnh cho [${profileId}]: gradle ${profArgs}`;
+    }
     if (els.cfgProfileEnv) {
       if (prof.env && typeof prof.env === "object") {
         els.cfgProfileEnv.value = Object.entries(prof.env)
@@ -1115,9 +1140,9 @@
     const chosen = els.cfgActiveProfile.value;
     if (els.cfgEditProfileId) {
       els.cfgEditProfileId.value = chosen;
-      editingProfileId = chosen;
-      loadSelectedProfileIntoConfigInputs(chosen);
     }
+    editingProfileId = chosen;
+    loadSelectedProfileIntoConfigInputs(chosen);
   });
 
   els.cfgEditProfileId?.addEventListener("change", () => {
